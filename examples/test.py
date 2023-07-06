@@ -1,10 +1,10 @@
-import numpy as np
+from numpy import asarray
 from PIL import Image
 
-from qtreemesh import image_preprocess, QTree, QTreeMesh
+from qtreemesh import QTree, QTreeMesh, image_preprocess
 
 im = Image.open("4.jpg").convert('L')  # Converting to GrayScale
-imar = image_preprocess(np.asarray(im))  # Creating an Array from Image
+imar = image_preprocess(asarray(im))  # Creating an Array from Image
 quad = QTree(None, imar, 125)
 mesh = QTreeMesh(quad)
 mesh.create_elements()
