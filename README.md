@@ -121,7 +121,7 @@ im = Image.open("4.jpg").convert('L')
 
 In order to implement QuadTree algorithm, the image should be square and the number of pixels in each dimension should be of order $2^n$ (*more explanation to be added*). There is a function `image_preprocess` dedicated to this modification of original image:
 ```python
-from qmeshtree import image_preprocess
+from qtreemesh import image_preprocess
 
 imar = image_preprocess(asarray(im))
 ```
@@ -130,7 +130,7 @@ imar = image_preprocess(asarray(im))
 
 The QuadTree decomposition can be performed on `image_array` using a recursive class `QTree` based on given `tolerance`.
 ```python
-from qmeshtree import QTree
+from qtreemesh import QTree
 
 quad = QTree(None, imar, 125) # QTree(None, image_array, tolerance)
 ```
@@ -143,7 +143,7 @@ quad = QTree(None, imar, 125) # QTree(None, image_array, tolerance)
 ### 4. Mesh Generation
 Common mesh data structure can be extracted from QuadTree structure using `QTreeMesh` class. After initiating the class, corresponding `elements` and `nodes` can be generated as attributes of the `QTreeMesh` object with the method `create_elements`. The resulted mesh may be illustrated using `draw` method. 
 ```python
-from qmeshtree import QTreeMesh
+from qtreemesh import QTreeMesh
 
 mesh = QTreeMesh(quad)
 mesh.create_elements()
