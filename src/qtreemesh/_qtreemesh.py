@@ -1,7 +1,7 @@
 """
 A module for generating quadtree mesh from an image.
 
-Author : Sad_Abd
+Author : Sadjad Abedi
 """
 
 import numpy as np
@@ -66,21 +66,68 @@ class QTree():
     ----------
     parent : None or QTree object
         Parent leaf of current leaf
-    
-    
+    array : numpy array
+        Corresponding partition of image array.
+    crit : int, optional
+        The criteria used for partitioning. Default value is 1.
+    scale : float, optional
+        The ratio between pixels units and real units. For example, when scale is 2,
+        each pixel represents a 2*2 ($mm^2$ or $in^2$ or ...) square part of the object.
+        This parameter is used to calculate spatial location of pixels.
+        Default value is 1.
+    bottom_left_corner : Point, optional
+        A Point object that contains the coordinate of the bottom left corner of each
+        partition. Default position is (0.0,0.0).
+    top_right_corner : Point
+        A Point object that contains the coordinate of the top right corner of each
+        partition. Calculated from bottom_left_corner.
+    dimension : int
+        Dimension of the cell (number of pixels in each direction).
+    depth : int, optional
+        Depth of the node in tree. It's 0 for the root.   
+    property : float
+        An indicator for material properties calculated by averaging 
+        the pixels intensities.  
+    divided : bool
+        Indicate wether the cell is divided (is an inner node) or not (is a leaf).
     count_leaves : int
-        Total number of leaves
-
+        Total number of external nodes (leaves).
+    north_west : None or QTree object
+        Address the cell located in northwest part of current cell. None for leaves.
+    north_east : None or QTree object
+        Address the cell located in northeast part of current cell. None for leaves.
+    south_west : None or QTree object
+        Address the cell located in southwest part of current cell. None for leaves.
+    south_east : None or QTree object
+        Address the cell located in southeast part of current cell. None for leaves.
+    
 
     Methods
     -------
     sectors()
-        A recursive function to create subtrees.
+        A recursive function to partition the array and create subtrees.
     save_leaves()
-    
+        A method that returns a list of external nodes (leaves).
+    north_neighbor()
+        A recursive function that return north neighbor of the cell. 
+        return none if the cell is on the top of the image.
+    south_neighbor()
+        A recursive function that return south neighbor of the cell. 
+        return none if the cell is on the bottom of the image.
+    west_neighbor()
+        A recursive function that return west neighbor of the cell. 
+        return none if the cell is on the left side of the image.
+    east_neighbor()
+        A recursive function that return east neighbor of the cell. 
+        return none if the cell is on the right side of the image.
+    need_split(node):
+        Check 4 sides neighbors for more than 2:1 ratio. Return True
+        if the cell has to be splitted for 2:1 balancing.
+    balancing():
+        Balance QTree for 2:1 ratio.
 
     """
-    def __init__(self, parent, array, crit=1, scale=1,
+    def __init__(self, parent, array, crit=1, scale=1.,
                  bottom_left_corner=Point((0.0, 0.0)), depth = 0):
         self.north_west = None  # NorthWest Section Initiated Empty
         self.north_east = None  # NorthEast Section Initiated Empty
@@ -97,10 +144,7 @@ class QTree():
         self.bottom_left_corner = bottom_left_corner  # BottomLeft Coordinates
         self.top_right_corner = bottom_left_corner.coord_sum(
             (array.shape[1]*scale, array.shape[0]*scale))  # TopRight Coordinates
-        self.element_numbers = None
-        self.node_numbers = list()
         self.dimension = np.sqrt(array.size)  # To define scale requirement
-        self.element_type = None
         
         # SPLITTING
         if (np.max(array)-np.min(array)) > crit:  # Check Splitting Criteria
@@ -108,7 +152,7 @@ class QTree():
 
     def sectors(self):
         """
-        A recursive function to create subtrees
+        A recursive function to create subtrees.
 
         Parameters
         ----------
@@ -311,7 +355,8 @@ class QTree():
     @staticmethod
     def need_split(node):
         """
-        Check 4 sides neighbors for more than 2:1 ratio.
+        Check 4 sides neighbors for more than 2:1 ratio. Return True
+        if the cell has to be splitted for 2:1 balancing.
 
         Returns
         -------
@@ -374,16 +419,26 @@ class QTreeElement():
 
     Attributes
     ----------
-    -- : --
-        --
+    number : int
+        Element number label. 
+    nodes_numbers : list(int)
+        Number of nodes of the element. The order of nodes is counterclockwise.
+    nodes_coordinates : list(tuple)
+        A list that contains a tuple of x-y coordinates of the nodes
+        based on nodes_numbers.
+    element_type : list()
+        A list that contains three values. First value indicate the element 
+        mode based on basic modes (1 to 6). The second value indicate the 
+        angle of rotation that element needs to convert to basic modes. The
+        third value indicate scale parameter. [Used for SBFEM mesh]
+    element_property : float
+        Element indicator of material properties calculated by averaging
+        the pixels intensities.   
     
 
 
     Methods
     -------
-    --()
-        --
-    --()
     
 
     """
@@ -415,7 +470,7 @@ class QTreeMesh():
     --()
     
 
-    """    
+    """
     def __init__(self, quad_tree:QTree, balancing = True) -> None:
         """_summary_
 
@@ -435,10 +490,10 @@ class QTreeMesh():
         self.labeling()
         self.refactor_edge()
         for leaf in self.leaves:
-            label = leaf.element_number
-            node_number = leaf.node_numbers
+            label = leaf.cell_number
+            node_number = leaf.edge_points_numbers
             node_coordinate = [self.nodes[n-1,:] for n in node_number]
-            element_type = leaf.element_type
+            element_type = leaf.cell_type
             element_property = leaf.property
             self.elements.append(QTreeElement(label,node_number,node_coordinate,
                                               element_type,element_property))
@@ -462,7 +517,7 @@ class QTreeMesh():
         label = 1
         
         for leaf in self.leaves:
-            leaf.node_numbers = []
+            leaf.edge_points_numbers = []
             leaf.nodes_coordinate = []
             leaf.nodes_coordinate.append(np.array(leaf.bottom_left_corner.xy_coord))
             leaf.nodes_coordinate.append(np.array((leaf.top_right_corner.x_coord,
@@ -473,13 +528,13 @@ class QTreeMesh():
                                       leaf.top_right_corner.y_coord)))
             for node in leaf.nodes_coordinate:  #Creating Element node list
                 if any(np.equal(self.nodes,node).all(1)):
-                    leaf.node_numbers.append(
+                    leaf.edge_points_numbers.append(
                         np.where(np.equal(self.nodes,node).all(1) == True)[0][0])
                 else:
                     self.nodes = np.r_[self.nodes,[node]]
-                    leaf.node_numbers.append(self.nodes.shape[0]-1)
+                    leaf.edge_points_numbers.append(self.nodes.shape[0]-1)
             
-            leaf.element_number = label
+            leaf.cell_number = label
             label += 1
         self.nodes = self.nodes[1:,:]
 
@@ -496,50 +551,50 @@ class QTreeMesh():
             newedge = list()
             mode = list()
             
-            newedge.append(leaf.node_numbers[0])
+            newedge.append(leaf.edge_points_numbers[0])
             if leaf.south_neighbor() is not None:
                 if leaf.south_neighbor().divided:
-                    newedge.append(leaf.south_neighbor().north_west.node_numbers[3])
+                    newedge.append(leaf.south_neighbor().north_west.edge_points_numbers[3])
                     mode.append(True)
                 else:
                     mode.append(False)
             else:
                 mode.append(False)
             
-            newedge.append(leaf.node_numbers[1])
+            newedge.append(leaf.edge_points_numbers[1])
             if leaf.east_neighbor() is not None:
                 if leaf.east_neighbor().divided:
-                    newedge.append(leaf.east_neighbor().north_west.node_numbers[0])
+                    newedge.append(leaf.east_neighbor().north_west.edge_points_numbers[0])
                     mode.append(True)
                 else:
                     mode.append(False)
             else:
                 mode.append(False)
                     
-            newedge.append(leaf.node_numbers[2])
+            newedge.append(leaf.edge_points_numbers[2])
             if leaf.north_neighbor() is not None:
                 if leaf.north_neighbor().divided:
-                    newedge.append(leaf.north_neighbor().south_east.node_numbers[0]) 
+                    newedge.append(leaf.north_neighbor().south_east.edge_points_numbers[0]) 
                     mode.append(True)
                 else:
                     mode.append(False)
             else:
                 mode.append(False)
             
-            newedge.append(leaf.node_numbers[3])
+            newedge.append(leaf.edge_points_numbers[3])
             if leaf.west_neighbor() is not None:
                 if leaf.west_neighbor().divided:
-                    newedge.append(leaf.west_neighbor().south_east.node_numbers[2])
+                    newedge.append(leaf.west_neighbor().south_east.edge_points_numbers[2])
                     mode.append(True)
                 else:
                     mode.append(False)
             else:
                 mode.append(False)
                 
-            element_type = self.mode_detection(mode)
-            element_type.append(leaf.dimension)
-            leaf.node_numbers = newedge
-            leaf.element_type = element_type
+            cell_type = self.mode_detection(mode)
+            cell_type.append(leaf.dimension)
+            leaf.edge_points_numbers = newedge
+            leaf.cell_type = cell_type
     
     @staticmethod
     def mode_detection(mode):
