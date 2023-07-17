@@ -5,7 +5,7 @@ Author : Sadjad Abedi
 """
 
 import numpy as np
-from matplotlib.pyplot import figure, fill, show
+from matplotlib.pyplot import figure, fill, show, axis
 
 
 class Point():
@@ -145,7 +145,7 @@ class QTree():
         self.top_right_corner = bottom_left_corner.coord_sum(
             (array.shape[1]*scale, array.shape[0]*scale))  # TopRight Coordinates
         self.dimension = np.sqrt(array.size)  # To define scale requirement
-        
+
         # SPLITTING
         if (np.max(array)-np.min(array)) > crit:  # Check Splitting Criteria
             self.sectors()
@@ -214,7 +214,7 @@ class QTree():
                self.north_east.count_leaves +\
                self.south_west.count_leaves +\
                self.south_east.count_leaves
-    
+
     def save_leaves(self):
         """
         A function that stores all the leaves.
@@ -229,19 +229,19 @@ class QTree():
         leaves_list : list
             A list of all leaves.    
         """
-    
+
         # Stack to store all the nodes of tree
         node_list = []
-    
+
         # Stack to store all the leaf nodes
         leaves_list = []
-    
+
         # Push the root node
         node_list.append(self)
-    
+
         while len(node_list) != 0:
             curr = node_list.pop()
-    
+
             # If current node has a child push it onto the first stack
             if curr.divided:
                 node_list.append(curr.north_west)
@@ -251,9 +251,9 @@ class QTree():
             # If current node is a leaf node push it onto the second stack
             else:
                 leaves_list.append(curr)
-        
+
         return leaves_list
-    
+
     def north_neighbor(self):
         """
         Find north neighbor of Node.
@@ -341,7 +341,7 @@ class QTree():
             return self.parent.north_east
         if self == self.parent.south_west:
             return self.parent.south_east
-        
+
         parent_neighbor = self.parent.east_neighbor()
         if parent_neighbor is None:
             return parent_neighbor
@@ -384,9 +384,9 @@ class QTree():
                 if (node.east_neighbor().north_west.divided or
                     node.east_neighbor().south_west.divided):
                     return True
-        
+
         return False
-    
+
     def balancing(self):
         """
         Balance QTree for 2:1 ratio.
@@ -396,11 +396,11 @@ class QTree():
         """
         leaves = self.save_leaves()
         while len(leaves) != 0:
-            
+
             node = leaves.pop()
             if not node.divided:
                 if self.need_split(node):
-                    node.sectors()            
+                    node.sectors()
                     leaves.extend([node.south_west,node.south_east,node.north_west,node.north_east])
                     if self.need_split(node.north_neighbor()):
                         leaves.append(node.north_neighbor())
@@ -410,7 +410,7 @@ class QTree():
                         leaves.append(node.west_neighbor())
                     if self.need_split(node.east_neighbor()):
                         leaves.append(node.east_neighbor())
-    
+
 class QTreeElement():
     """
     A class used to represent a quadtree element.
@@ -458,35 +458,47 @@ class QTreeMesh():
 
     Attributes
     ----------
-    -- : --
-        --
+    quad_tree : QTree object
+        The main quad-tree structure from which initial mesh is generated.
+    balancing : bool, optional
+        Indicate whether the quad-tree is balanced for 2:1 ratio or not.
+    leaves : list
+        Outer nodes of the quad-tree.
+    elements : list
+        List of mesh elements as QTreeElement objects.
+    nodes : list
+        List of coordinates of mesh nodes.      
     
 
 
     Methods
     -------
-    --()
-        --
-    --()
+    create_elements()
+        Generate elements from cells in quad-tree. 
+    labeling()
+        Labeling cells and their corner points.
+    refactor_edge()
+        Considering edge points in the cells attributes and detect cell modes
+        based on the presence and location of edge points.
+    mode_detection()
+        Detect cell modes based on the presence and location of edge points.
+    draw()
+        Draw the generated mesh.
     
-
     """
     def __init__(self, quad_tree:QTree, balancing = True) -> None:
-        """_summary_
-
-        Args:
-            quad_tree (_type_): _description_
-            balancing (bool, optional): _description_. Defaults to True.
-        """
         self.quad_tree = quad_tree
         if balancing:
             self.quad_tree.balancing()
         self.leaves = self.quad_tree.save_leaves()
-        
+
         self.elements = []
         self.nodes = None
-        
+
     def create_elements(self):
+        """
+        The main function of class that generate elements from quad-tree cells.
+        """
         self.labeling()
         self.refactor_edge()
         for leaf in self.leaves:
@@ -497,25 +509,17 @@ class QTreeMesh():
             element_property = leaf.property
             self.elements.append(QTreeElement(label,node_number,node_coordinate,
                                               element_type,element_property))
- 
+
 
 
     def labeling(self):
-        '''
-        
-
-        Parameters
-        ----------
-
-
-        Returns
-        -------
-
-
-        '''
+        """
+        A function that labels all cells and their corresponding corner
+        points and add corner points to mesh nodes.   
+        """
         self.nodes = np.array([[+np.inf,-np.inf]])
         label = 1
-        
+
         for leaf in self.leaves:
             leaf.edge_points_numbers = []
             leaf.nodes_coordinate = []
@@ -533,7 +537,7 @@ class QTreeMesh():
                 else:
                     self.nodes = np.r_[self.nodes,[node]]
                     leaf.edge_points_numbers.append(self.nodes.shape[0]-1)
-            
+
             leaf.cell_number = label
             label += 1
         self.nodes = self.nodes[1:,:]
@@ -541,16 +545,15 @@ class QTreeMesh():
 
     def refactor_edge(self):
         """
-        Adding hanging nodes.
-        
-        
-        
+        A function that consider edge points, add them to 
+        cells attributes, and detect cell modes based on the
+        presence and location of edge points 
         """
-       
+
         for leaf in self.leaves:
             newedge = list()
             mode = list()
-            
+
             newedge.append(leaf.edge_points_numbers[0])
             if leaf.south_neighbor() is not None:
                 if leaf.south_neighbor().divided:
@@ -560,7 +563,7 @@ class QTreeMesh():
                     mode.append(False)
             else:
                 mode.append(False)
-            
+
             newedge.append(leaf.edge_points_numbers[1])
             if leaf.east_neighbor() is not None:
                 if leaf.east_neighbor().divided:
@@ -570,17 +573,17 @@ class QTreeMesh():
                     mode.append(False)
             else:
                 mode.append(False)
-                    
+
             newedge.append(leaf.edge_points_numbers[2])
             if leaf.north_neighbor() is not None:
                 if leaf.north_neighbor().divided:
-                    newedge.append(leaf.north_neighbor().south_east.edge_points_numbers[0]) 
+                    newedge.append(leaf.north_neighbor().south_east.edge_points_numbers[0])
                     mode.append(True)
                 else:
                     mode.append(False)
             else:
                 mode.append(False)
-            
+
             newedge.append(leaf.edge_points_numbers[3])
             if leaf.west_neighbor() is not None:
                 if leaf.west_neighbor().divided:
@@ -590,16 +593,18 @@ class QTreeMesh():
                     mode.append(False)
             else:
                 mode.append(False)
-                
+
             cell_type = self.mode_detection(mode)
             cell_type.append(leaf.dimension)
             leaf.edge_points_numbers = newedge
             leaf.cell_type = cell_type
-    
+
     @staticmethod
     def mode_detection(mode):
-        """   
-  
+        """
+        A function that detect cell modes based on the
+        presence and location of edge points.
+        
         Basic modes:
          *---* *---* *---*
          |   | |   | |   |
@@ -612,14 +617,28 @@ class QTreeMesh():
          |   | |   | |   |
          *-*-* *---* *-*-*
         
+        Parameters
+        ----------
+        mode : list
+            A list of booleans that indicates the presence of 
+            the edge node on each edge, starting from bottom edge
+            and rotating counter-clockwise.
+            
+
+        Returns
+        -------
+        _ : list
+            A list that first index determine basic mode number and
+            the second index determine the angle of rotation needed 
+            to acquire the basic mode.    
         """
-        
-        f = mode.count(True)
-        if f == 0:
+
+        number_edge_points = mode.count(True)
+        if number_edge_points == 0:
             return [1,0]
-        elif f == 1:
+        elif number_edge_points == 1:
             return [2,mode.index(True)*90]
-        elif f == 2:
+        elif number_edge_points == 2:
             if mode == [True,True,False,False]:
                 return [3,0]
             elif mode == [False,True,True,False]:
@@ -632,11 +651,11 @@ class QTreeMesh():
                 return [4,0]
             elif mode == [False,True,False,True]:
                 return [4,90]
-        elif f == 3:
+        elif number_edge_points == 3:
             return [5,mode.index(False)*90]
-        elif f == 4:
-            return [6,0]               
-    
+        elif number_edge_points == 4:
+            return [6,0]
+
     def draw(self, fill_inside = True, edge_color = None, save_name = None):
         """
         Draw elements with filling inside.
@@ -656,67 +675,63 @@ class QTreeMesh():
             None.
 
         """
-        fig = figure()
+        fig = figure(figsize=(10,10),frameon=False)
+        axis('off')
         for element in self.elements:
             fill([p[0] for p in element.nodes_coordinates],
                 [p[1] for p in element.nodes_coordinates],
                 facecolor = str(element.element_property/255) if fill_inside else 'white',
                 edgecolor=edge_color)
+        fig.tight_layout()
         show()
         if save_name:
             fig.savefig(save_name)
-        
-        
-          
-    
+
+
 def image_preprocess(image_array):
     """
-    A function to make image square and of order 2^n
+    A function to make image square and of order 2^n.
 
     Parameters
     ----------
-
+    image_array : numpy array
+        The array of the image.
 
     Returns
     -------
-        None.
-
+    image_array : numpy array
+        The modified array of the image.
     """
-    
+
     if image_array.shape[0] > image_array.shape[1]:
         diff = image_array.shape[0] - image_array.shape[1]
         image_array = np.hstack((image_array,np.zeros((image_array.shape[0],diff))))
     elif image_array.shape[0] < image_array.shape[1]:
         diff = image_array.shape[1] - image_array.shape[0]
         image_array = np.vstack((image_array,np.zeros((diff,image_array.shape[1]))))
-        
+
     base = 2
     order_y = 2
-    
+
     while image_array.shape[0] > base:
         base = 2**order_y
         order_y += 1
-    
+
     diffy = base - image_array.shape[0]
-    
+
     if diffy != 0:
         image_array = np.vstack((image_array,np.zeros((diffy,image_array.shape[1]))))
-    
+
     base = 2
     order_x = 2
-    
+
     while image_array.shape[1] > base:
         base = 2**order_x
         order_x += 1
-    
+
     diffx = base - image_array.shape[1]
-    
+
     if diffx != 0:
         image_array = np.hstack((image_array,np.zeros((image_array.shape[0],diffx))))
-    
-    
-    
-    return image_array
-        
-        
 
+    return image_array
