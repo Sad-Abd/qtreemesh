@@ -5,7 +5,7 @@ with open("README.md", "r", encoding = "utf-8") as fh:
 
 setuptools.setup(
     name = "qtreemesh",
-    version = "0.0.1",
+    version = "0.1.0",
     author = "Sad-Abd",
     author_email = "abedisadjad@gmail.com",
     description = "A package that creats quadtree mesh from an image",
@@ -13,7 +13,7 @@ setuptools.setup(
     long_description_content_type = "text/markdown",
     url = "https://github.com/Sad-Abd/qtreemesh",
     project_urls = {
-        "Bug Tracker": "https://github.com/Sad-Abd/qtreemesh",
+        "Bug Tracker": "https://github.com/Sad-Abd/qtreemesh/issues",
     },
     classifiers = [
         "Programming Language :: Python :: 3",
