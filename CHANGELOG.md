@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-## [0.1.0] - 2023-7-17
+## [0.1.01] - 2023-7-17
 
 ### Added
 - Start using a Changelog.

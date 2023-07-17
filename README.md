@@ -154,8 +154,8 @@ Each element in `elements` is a `QTreeElement` object that contains many attribu
 
 | Example   |      Image      |  Mesh |
 |----------|:-------------:|:------:|
-| 4.jpg |  <img src="examples/4.jpg" alt="image 4" width="200px"> | <img src="examples/4_meshed.png" alt="image 4" width="200px"> |
-| 5.jpg |    <img src="examples/5.jpg" alt="image 4" width="200px">   |   <img src="examples/5_meshed.png" alt="image 4" width="260px"> |
+| 4.jpg |  <img src="examples/4.jpg" alt="image 4" width="200px"> | <img src="examples/4_meshed.png" alt="image 4 meshed" width="200px"> |
+| 5.jpg |    <img src="examples/5.jpg" alt="image 5" width="200px">   |   <img src="examples/5_meshed.png" alt="image 5 meshed" width="260px"> |
 
 _For more examples, please refer to the [Documentation](https://example.com)_
 
