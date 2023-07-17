@@ -152,7 +152,10 @@ mesh.draw(True, 'orangered') # mesh.draw(fill_inside, edge_color, save_name)
 
 Each element in `elements` is a `QTreeElement` object that contains many attributes, e.g. element number : `number`, element nodes : `nodes_numbers`, element property (average of pixel intensities) : `element_property` and etc.
 
-
+| Example   |      Image      |  Mesh |
+|----------|:-------------:|:------:|
+| 4.jpg |  <img src="examples/4.jpg" alt="image 4" width="200px"> | <img src="examples/4_meshed.png" alt="image 4" width="200px"> |
+| 5.jpg |    <img src="examples/5.jpg" alt="image 4" width="200px">   |   <img src="examples/5_meshed.png" alt="image 4" width="260px"> |
 
 _For more examples, please refer to the [Documentation](https://example.com)_
 
@@ -163,9 +166,13 @@ _For more examples, please refer to the [Documentation](https://example.com)_
 <!-- ROADMAP -->
 ## Roadmap
 
-- [ ] Completing the codes documentation
+- [x] Completing the codes documentation
 - [ ] Adding details to README file
 - [ ] Exporting data as `vtk` format
+- [ ] Successfully implement in FEM software
+  - [ ] Handling hanging nodes
+  - [ ] Prepare required data
+  - [ ] Illustrate usage in open-source FEM programs
 - [ ] Prepare required data for SBFEM
 
 
