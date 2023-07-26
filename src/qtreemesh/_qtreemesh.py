@@ -484,6 +484,8 @@ class QTreeMesh():
         Detect cell modes based on the presence and location of edge points.
     draw()
         Draw the generated mesh.
+    vtk_export()
+        Export mesh as unstructured grid in vtk file.
     
     """
     def __init__(self, quad_tree:QTree, balancing = True) -> None:
@@ -557,7 +559,7 @@ class QTreeMesh():
             newedge.append(leaf.edge_points_numbers[0])
             if leaf.south_neighbor() is not None:
                 if leaf.south_neighbor().divided:
-                    newedge.append(leaf.south_neighbor().north_west.edge_points_numbers[3])
+                    newedge.append(leaf.south_neighbor().north_west.edge_points_numbers[2])
                     mode.append(True)
                 else:
                     mode.append(False)
@@ -687,6 +689,50 @@ class QTreeMesh():
         if save_name:
             fig.savefig(save_name)
 
+    def vtk_export(self,filename = "output.vtk"):
+        """
+        Export mesh as unstructured grid to .vtk file.
+        Creating the file is done manually, and no library is used.
+
+        Parameters
+        ----------
+        filename : str, optional
+            Output file name.
+
+        Returns
+        -------
+            None.
+
+        """
+        file_open = open(filename, "w", encoding="utf-8")
+        file_open.write("# vtk DataFile Version 2.0\nOutput Data\nASCII\n")
+        file_open.write("DATASET UNSTRUCTURED_GRID\n")
+        total_points = self.nodes.shape[0]
+        file_open.write(f"POINTS {total_points} float\n")
+        for each in self.nodes:
+            file_open.write(f"{each[0]} {each[1]} 0.0\n")
+        total_cells = len(self.elements)
+        new_connectivity = [np.array(each.nodes_numbers)-1 for each in self.elements]
+        total_data = sum([i.shape[0] for i in new_connectivity])+len(new_connectivity)
+        file_open.write(f"CELLS {total_cells} {total_data}\n")
+
+        for each in new_connectivity:
+
+            file_open.write(f"{each.shape[0]} ")
+            file_open.writelines(str(np.flip(each))[1:-1])
+            file_open.write("\n")
+
+        file_open.write(f"CELL_TYPES {total_cells}\n")
+        for i in range(total_cells):
+            file_open.write("7\n")
+
+        material = [each.element_property for each in self.elements]
+        file_open.write(f"CELL_DATA {total_cells}\n")
+        file_open.write("SCALARS Average-Intensity float 1 \nLOOKUP_TABLE default \n")
+        for item in material:
+            file_open.write(f"{item}\n")
+
+        file_open.close()
 
 def image_preprocess(image_array):
     """
