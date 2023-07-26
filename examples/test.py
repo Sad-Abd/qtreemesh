@@ -8,4 +8,5 @@ imar = image_preprocess(asarray(im))  # Creating an Array from Image
 quad = QTree(None, imar, 125)
 mesh = QTreeMesh(quad)
 mesh.create_elements()
+mesh.vtk_export(filename = "4_meshed.vtk")
 mesh.draw(True, 'orangered')
