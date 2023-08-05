@@ -42,18 +42,22 @@
   <ol>
     <li>
       <a href="#about-the-project">About The Project</a>
-      <ul>
-        <li><a href="#built-with">Built With</a></li>
-      </ul>
     </li>
     <li>
       <a href="#getting-started">Getting Started</a>
       <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
         <li><a href="#installation">Installation</a></li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
+    <li><a href="#usage">Usage</a>
+      <ol>
+        <li><a href="#1.-read-image">Read Image</a></li>
+        <li><a href="#2.-preprocessing">Preprocessing</a></li>
+        <li><a href="#3.-quadTree-algorithm">QuadTree Algorithm</a></li>
+        <li><a href="#4.-mesh-generation">Mesh Generation</a></li>
+      </ol>
+    </li>
+    <li><a href="#theoretical-explanation">Theoretical Explanation</a></li>
     <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
@@ -69,18 +73,20 @@
 
 <!--[![Product Name Screen Shot][product-screenshot]](https://example.com)-->
 
-QTREEMESH is a python package that can create a [Quadtree](https://en.wikipedia.org/wiki/Quadtree) structure from an image. This tree data structure can also be converted to mesh structure that can be used in different areas of science, e.g. finite element analysis. The Quadtree algorithm in this package is based on pixels' intensity.    
+QTREEMESH is a python package that can create a [Quadtree](https://en.wikipedia.org/wiki/Quadtree) structure from an image. This tree data structure can also be converted to mesh structure that can be used in different areas of science, e.g. finite element analysis. The Quadtree algorithm in this package is based on pixels' intensity. For more information about this algorithm, please refer to <a href="#theoretical-explanation">Theoretical Explanation</a> section of this doc.
+
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 
+<!--
 ### Built With
 
 [![python][python]](https://www.python.org)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
-
+-->
 
 
 <!-- GETTING STARTED -->
@@ -104,7 +110,7 @@ pip install qtreemesh
 
 There is a `test.py` file in `examples` folder that demonstrate how different parts of this package work. Here we go through this file line by line:
 
-### 1. Read image
+### 1. Read Image
 
 First we import required tools from other libraries
 ```python
@@ -119,7 +125,7 @@ im = Image.open("4.jpg").convert('L')
 
 ### 2. Preprocessing
 
-In order to implement QuadTree algorithm, the image should be square and the number of pixels in each dimension should be of order $2^n$ (*more explanation to be added*). There is a function `image_preprocess` dedicated to this modification of original image:
+The quadtree algorithm is most efficient when the image is square and the number of its pixels is an integer power of 2, i.e. $2^n$. There is a function `image_preprocess()` dedicated to the modification of the original image by padding it with zero intensity pixels and satisfying the mentioned requirement:
 ```python
 from qtreemesh import image_preprocess
 
@@ -157,9 +163,61 @@ Each element in `elements` is a `QTreeElement` object that contains many attribu
 | 4.jpg |  <img src="examples/4.jpg" alt="image 4" width="200px"> | <img src="examples/4_meshed.png" alt="image 4 meshed" width="200px"> |
 | 5.jpg |    <img src="examples/5.jpg" alt="image 5" width="200px">   |   <img src="examples/5_meshed.png" alt="image 5 meshed" width="260px"> |
 
+One can easily export generated mesh as `vtk` format using following line:
+```python
+mesh.vtk_export(filename = "4_meshed.vtk")
+```
+and the result can be viewed in visualization applications such as [ParaView](https://github.com/Kitware/ParaView):
+
+<img src="examples/4_meshed_pv.png" alt="image 4 meshed in ParaView" width="260px">
+
+It's worth mentioning that the method `vtk_export()` has no dependency to vtk related libraries and create `.vtk` file manually.
+
 _For more examples, please refer to the [Documentation](https://example.com)_
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Theoretical Explanation
+
+### Introduction
+
+A __Quadtree__ is a special type of tree where each parent node has exactly four smaller nodes connected to it. Each square in the Quadtree is represented by a node. If a node has children, their squares are the four quadrants of its own square, which is why the tree is called a tree. This means that when you put the smaller squares of the leaves together, they make up the bigger square of the root. 
+
+<img src="images/QuadTree1.jpg" alt="QuadTree Illustration">
+
+In this figure, labels _NW_, _NE_, _SE_, and _SW_ are representing different quadrants (North-West, North-East, South-East and South-West respectively).
+
+While this algorithm has many applications in various fields of science (e.g., collision detection, image compression, etc.), this doc especially focuses on the mesh generation subject. There almost three major definition of problem:
+
+1. **Points set problems:**
+
+    In this case, there are a set of points $\{p_i\} : (x_i , y_i)$ (which can be interpreted as the position of objects), and we need to build the quadtree in such a way that every square contains at most $c$ point(s). First we consider the root square which contains all the points. Then we start recursively splitting squares until the criteria $n_p \le c$ met. In following figure, the quadtree of 11 points with $c = 1$ is illustrated:
+
+    <img src="images/QuadTree2.jpg" alt="QuadTree for points set">
+
+    There are many different implementations of this variation of algorithm, for example in [Python](https://www.geeksforgeeks.org/quad-tree/), 
+    [C++](https://lisyarus.github.io/blog/programming/2022/12/21/quadtrees.html), and 
+    [C#](https://github.com/justcoding121/Advanced-Algorithms/blob/develop/src/Advanced.Algorithms/DataStructures/Tree/QuadTree.cs).
+
+2. **Domain boundary problems:**
+    
+    This type of problem is very common in mesh generation for CAD models. The domain of interest is defined by some lines that usually separate inside of the domain from outside of it. A common approach is to generate *seed points* on the boundary and create a quadtree just the same as points set problems. There will be some additional steps to convert quadtree to FEM mesh, such as removing the outside squares and trimming of boundary squares. The following figure illustrate quadtree of a circular domain 
+    [Ref](https://www.researchgate.net/publication/354207606_Solving_incompressible_Navier--Stokes_equations_on_irregular_domains_and_quadtrees_by_monolithic_approach).
+
+    <img src="images/QuadTree3.jpg" alt="Domain boundary problems">
+    
+    
+3. **Digital images problems:**
+
+    The quadtree decomposition of an image means dividing the image into squares with the same color (within a given threshold). Considering an image consisting of $2^n × 2^n$ pixels, the algorithm recursively split the image into four quadrants until the difference between the maximum and minimum pixels intensities becomes less than the specified tolerance. 
+
+    The current package is dedicated to these types of problems.
+
+
+### References
+* de Berg, M., Cheong, O., van Kreveld, M., & Overmars, M. (2008). Computational geometry: Algorithms and applications. In Computational Geometry: Algorithms and Applications. Springer Berlin Heidelberg. https://doi.org/10.1007/978-3-540-77974-2
+* Lo, D.S.H. (2015). Finite Element Mesh Generation (1st ed.). CRC Press. https://doi.org/10.1201/b17713
+* Frey, Pascal & George, Paul. (2008). Mesh Generation: Application to Finite Elements: Second Edition. Mesh Generation: Application to Finite Elements: Second Edition. https://doi.org/10.1002/9780470611166. 
 
 
 
@@ -168,7 +226,7 @@ _For more examples, please refer to the [Documentation](https://example.com)_
 
 - [x] Completing the codes documentation
 - [ ] Adding details to README file
-- [ ] Exporting data as `vtk` format
+- [x] Exporting data as `vtk` format
 - [ ] Successfully implement in FEM software
   - [ ] Handling hanging nodes
   - [ ] Prepare required data
