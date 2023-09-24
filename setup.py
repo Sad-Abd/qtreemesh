@@ -5,7 +5,7 @@ with open("README.md", "r", encoding = "utf-8") as fh:
 
 setuptools.setup(
     name = "qtreemesh",
-    version = "0.1.01",
+    version = "0.1.2",
     author = "Sad-Abd",
     author_email = "abedisadjad@gmail.com",
     description = "A package that creats quadtree mesh from an image",
