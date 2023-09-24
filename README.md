@@ -225,7 +225,7 @@ While this algorithm has many applications in various fields of science (e.g., c
 ## Roadmap
 
 - [x] Completing the codes documentation
-- [ ] Adding details to README file
+- [x] Adding details to README file
 - [x] Exporting data as `vtk` format
 - [ ] Successfully implement in FEM software
   - [ ] Handling hanging nodes
