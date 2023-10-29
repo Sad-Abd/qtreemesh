@@ -10,7 +10,8 @@
 [![LinkedIn][linkedin-shield]][linkedin-url]
 [![Made with love in SUT (Iran)][sut-badge]][sut-add]
 [![DOI](https://zenodo.org/badge/663074989.svg)](https://zenodo.org/badge/latestdoi/663074989)
-
+[![Downloads](https://static.pepy.tech/badge/qtreemesh)](https://pepy.tech/project/qtreemesh)
+[![Downloads](https://static.pepy.tech/badge/qtreemesh/month)](https://pepy.tech/project/qtreemesh)
 
 
 <!-- PROJECT LOGO -->
