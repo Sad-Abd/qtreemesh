@@ -439,8 +439,8 @@ class QTreeElement():
 
     Methods
     -------
-    
-
+    quad_treatment(force_triangulate=False)
+        Modify a quadtree element by handling hanging nodes
     """
     def __init__(self,label,nodes_numbers,nodes_coordinates,
                  element_type,element_property) -> None:
@@ -449,6 +449,109 @@ class QTreeElement():
         self.nodes_coordinates = nodes_coordinates
         self.element_type = element_type
         self.element_property = element_property
+
+    def quad_treatment(self, force_triangulate=True):
+        """
+        Modify a quadtree element by handling hanging nodes.
+
+        This function processes a quadtree element to handle hanging nodes. It returns the
+        modified node numbers for the mesh.
+
+        Parameters:
+        -----------
+        self : object
+            An instance of the QTreeElement processing class.
+
+        force_triangulate : bool, optional (default=True)
+            If True, forces triangulation when applicable.
+
+        Returns:
+        --------
+        new_nodes_numbers : list
+            A list containing the modified node numbers for the mesh, following
+            the specified treatment.
+        """
+        def roll_list_left(lst, positions=1):
+            positions = positions % len(lst)
+            return lst[positions:] + lst[:positions]
+
+        new_nodes_numbers = []
+        if self.element_type[0] == 1:
+            if force_triangulate:
+                new_nodes_numbers = [
+                [self.nodes_numbers[i] for i in [0,1,2]],
+                [self.nodes_numbers[i] for i in [0,2,3]]
+            ]
+            new_nodes_numbers = self.nodes_numbers
+        elif self.element_type[0] == 2:
+            rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+            new_nodes_numbers = [
+                [rotated_indices[i] for i in [4,0,1]],
+                [rotated_indices[i] for i in [4,1,3]],
+                [rotated_indices[i] for i in [3,1,2]]
+            ]
+        elif self.element_type[0] == 3:
+            rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+            new_nodes_numbers = [
+                [rotated_indices[i] for i in [5,0,1]],
+                [rotated_indices[i] for i in [1,2,3]],
+                [rotated_indices[i] for i in [3,4,5]],
+                [rotated_indices[i] for i in [5,1,3]]
+            ]
+        elif self.element_type[0] == 4:
+            if force_triangulate:
+                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+                new_nodes_numbers = [
+                [rotated_indices[i] for i in [5,0,1]],
+                [rotated_indices[i] for i in [1,2,3]],
+                [rotated_indices[i] for i in [4,1,3]],
+                [rotated_indices[i] for i in [5,1,4]]
+            ]
+            else:
+                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+                new_nodes_numbers = [
+                    [rotated_indices[i] for i in [0,1,4,5]],
+                    [rotated_indices[i] for i in [1,2,3,4]]
+                ]
+        elif self.element_type[0] == 5:
+            if force_triangulate:
+                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+                new_nodes_numbers = [
+                    [rotated_indices[i] for i in [6,4,5]],
+                    [rotated_indices[i] for i in [4,6,2]],
+                    [rotated_indices[i] for i in [2,3,4]],
+                    [rotated_indices[i] for i in [0,1,2]],
+                    [rotated_indices[i] for i in [0,2,6]]
+                ]
+            else:
+                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+                new_nodes_numbers = [
+                    [rotated_indices[i] for i in [6,4,5]],
+                    [rotated_indices[i] for i in [4,6,2]],
+                    [rotated_indices[i] for i in [2,3,4]],
+                    [rotated_indices[i] for i in [0,1,2,6]]
+                ]
+        else:
+            if force_triangulate:
+                new_nodes_numbers = [
+                    [self.nodes_numbers[i] for i in [7,0,1]],
+                    [self.nodes_numbers[i] for i in [1,2,3]],
+                    [self.nodes_numbers[i] for i in [3,4,5]],
+                    [self.nodes_numbers[i] for i in [5,6,7]],
+                    [self.nodes_numbers[i] for i in [7,1,3]],
+                    [self.nodes_numbers[i] for i in [7,3,5]]
+                ]
+            else:
+                new_nodes_numbers = [
+                    [self.nodes_numbers[i] for i in [7,0,1]],
+                    [self.nodes_numbers[i] for i in [1,2,3]],
+                    [self.nodes_numbers[i] for i in [3,4,5]],
+                    [self.nodes_numbers[i] for i in [5,6,7]],
+                    [self.nodes_numbers[i] for i in [7,1,3,5]]
+                ]
+
+        return new_nodes_numbers
+
 
 class QTreeMesh():
     """
@@ -486,7 +589,8 @@ class QTreeMesh():
         Draw the generated mesh.
     vtk_export()
         Export mesh as unstructured grid in vtk file.
-    
+    adjust_mesh_for_FEM()
+        Adjust the quadtree mesh for Finite Element Method (FEM) simulations.
     """
     def __init__(self, quad_tree:QTree, balancing = True) -> None:
         self.quad_tree = quad_tree
@@ -733,6 +837,31 @@ class QTreeMesh():
             file_open.write(f"{item}\n")
 
         file_open.close()
+
+    def adjust_mesh_for_FEM(self, force_triangulation=True):
+        """
+        Adjust the quadtree mesh for Finite Element Method (FEM) simulations.
+
+        This method processes the quadtree mesh to make it suitable for FEM simulations by
+        handling hanging nodes.
+
+        Args:
+            force_triangulation (bool, optional): If True, forces triangulation when applicable.
+
+        Returns:
+            tuple: A tuple containing the adjusted mesh components.
+            - nodes (list of tuples): List of (x, y) coordinates of nodes in the mesh.
+            - fem_elements (list of lists of int): List of modified element node numbers.
+            - fem_properties (list of float): List of element properties calculated by averaging pixel intensities.
+        """
+        fem_elements = []
+        fem_properties = []
+        for element in self.elements:
+            new_elements = element.quad_treatment(force_triangulation)
+            fem_elements += new_elements
+            fem_properties += [element.element_property] * len(new_elements)
+
+        return self.nodes, fem_elements, fem_properties
 
 def image_preprocess(image_array):
     """
