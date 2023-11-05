@@ -54,11 +54,11 @@
     </li>
     <li><a href="#usage">Usage</a>
       <ol>
-        <li><a href="#1.-read-image">Read Image</a></li>
-        <li><a href="#2.-preprocessing">Preprocessing</a></li>
-        <li><a href="#3.-quadTree-algorithm">QuadTree Algorithm</a></li>
-        <li><a href="#4.-mesh-generation">Mesh Generation</a></li>
-        <li><a href="#5. Export and Implementation">Export and Implementation</a></li>
+        <li><a href="#1-read-image">Read Image</a></li>
+        <li><a href="#2-preprocessing">Preprocessing</a></li>
+        <li><a href="#3-quadtree-algorithm">QuadTree Algorithm</a></li>
+        <li><a href="#4-mesh-generation">Mesh Generation</a></li>
+        <li><a href="#5-export-and-implementation">Export and Implementation</a></li>
       </ol>
     </li>
     <li><a href="#theoretical-explanation">Theoretical Explanation</a></li>
