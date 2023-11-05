@@ -58,6 +58,7 @@
         <li><a href="#2.-preprocessing">Preprocessing</a></li>
         <li><a href="#3.-quadTree-algorithm">QuadTree Algorithm</a></li>
         <li><a href="#4.-mesh-generation">Mesh Generation</a></li>
+        <li><a href="#5. Export and Implementation">Export and Implementation</a></li>
       </ol>
     </li>
     <li><a href="#theoretical-explanation">Theoretical Explanation</a></li>
@@ -166,6 +167,10 @@ Each element in `elements` is a `QTreeElement` object that contains many attribu
 | 4.jpg |  <img src="examples/4.jpg" alt="image 4" width="200px"> | <img src="examples/4_meshed.png" alt="image 4 meshed" width="200px"> |
 | 5.jpg |    <img src="examples/5.jpg" alt="image 5" width="200px">   |   <img src="examples/5_meshed.png" alt="image 5 meshed" width="260px"> |
 
+_For more examples, please refer to the [Documentation](https://example.com)_
+
+### 5. Export and Implementation
+
 One can easily export generated mesh as `vtk` format using following line:
 ```python
 mesh.vtk_export(filename = "4_meshed.vtk")
@@ -176,7 +181,12 @@ and the result can be viewed in visualization applications such as [ParaView](ht
 
 It's worth mentioning that the method `vtk_export()` has no dependency to vtk related libraries and create `.vtk` file manually.
 
-_For more examples, please refer to the [Documentation](https://example.com)_
+It is also possible to adjust the elements to handle hanging nodes and generate a mesh that is either triangular or quadrilateral/triangular (based on templates available in [[2]] and [[3]]).:
+
+```python
+fem_nodes, fem_elements, fem_properties = mesh.adjust_mesh_for_FEM()
+```
+The default configuration generates FEM elements as triangles. To include both quadrilateral and triangle elements, set `force_triagulation` to `False`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -204,8 +214,7 @@ While this algorithm has many applications in various fields of science (e.g., c
 
 2. **Domain boundary problems:**
     
-    This type of problem is very common in mesh generation for CAD models. The domain of interest is defined by some lines that usually separate inside of the domain from outside of it. A common approach is to generate *seed points* on the boundary and create a quadtree just the same as points set problems. There will be some additional steps to convert quadtree to FEM mesh, such as removing the outside squares and trimming of boundary squares. The following figure illustrate quadtree of a circular domain 
-    [Ref](https://www.researchgate.net/publication/354207606_Solving_incompressible_Navier--Stokes_equations_on_irregular_domains_and_quadtrees_by_monolithic_approach).
+    This type of problem is very common in mesh generation for CAD models. The domain of interest is defined by some lines that usually separate inside of the domain from outside of it. A common approach is to generate *seed points* on the boundary and create a quadtree just the same as points set problems. There will be some additional steps to convert quadtree to FEM mesh, such as removing the outside squares and trimming of boundary squares. The following figure illustrate quadtree of [a circular domain](https://www.researchgate.net/publication/354207606_Solving_incompressible_Navier--Stokes_equations_on_irregular_domains_and_quadtrees_by_monolithic_approach).
 
     <img src="https://github.com/Sad-Abd/qtreemesh/blob/main/images/QuadTree3.jpg" alt="Domain boundary problems">
     
@@ -218,11 +227,13 @@ While this algorithm has many applications in various fields of science (e.g., c
 
 
 ### References
-* de Berg, M., Cheong, O., van Kreveld, M., & Overmars, M. (2008). Computational geometry: Algorithms and applications. In Computational Geometry: Algorithms and Applications. Springer Berlin Heidelberg. https://doi.org/10.1007/978-3-540-77974-2
-* Lo, D.S.H. (2015). Finite Element Mesh Generation (1st ed.). CRC Press. https://doi.org/10.1201/b17713
-* Frey, Pascal & George, Paul. (2008). Mesh Generation: Application to Finite Elements: Second Edition. Mesh Generation: Application to Finite Elements: Second Edition. https://doi.org/10.1002/9780470611166. 
+1. de Berg, M., Cheong, O., van Kreveld, M., & Overmars, M. (2008). Computational geometry: Algorithms and applications. In Computational Geometry: Algorithms and Applications. Springer Berlin Heidelberg. https://doi.org/10.1007/978-3-540-77974-2
+2. Lo, D.S.H. (2015). Finite Element Mesh Generation (1st ed.). CRC Press. https://doi.org/10.1201/b17713
+3. George, P. L. (1992). Automatic mesh generation and finite element method. Wiley. https://doi.org/10.1016/S1570-8659(96)80003-2
 
-
+[1]: #references
+[2]: #references
+[3]: #references
 
 <!-- ROADMAP -->
 ## Roadmap
@@ -231,7 +242,7 @@ While this algorithm has many applications in various fields of science (e.g., c
 - [x] Adding details to README file
 - [x] Exporting data as `vtk` format
 - [ ] Successfully implement in FEM software
-  - [ ] Handling hanging nodes
+  - [x] Handling hanging nodes
   - [ ] Prepare required data
   - [ ] Illustrate usage in open-source FEM programs
 - [ ] Prepare required data for SBFEM
