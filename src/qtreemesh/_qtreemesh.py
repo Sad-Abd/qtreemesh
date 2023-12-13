@@ -492,7 +492,10 @@ class QTreeElement():
                 [rotated_indices[i] for i in [3,1,2]]
             ]
         elif self.element_type[0] == 3:
-            rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
+            t = 0
+            if self.element_type[1] == 270:
+                t += 1
+            rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+t)
             new_nodes_numbers = [
                 [rotated_indices[i] for i in [5,0,1]],
                 [rotated_indices[i] for i in [1,2,3]],
@@ -516,7 +519,7 @@ class QTreeElement():
                 ]
         elif self.element_type[0] == 5:
             if force_triangulate:
-                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
+                rotated_indices = roll_list_left(self.nodes_numbers, positions= 2 * self.element_type[1]//90)
                 new_nodes_numbers = [
                     [rotated_indices[i] for i in [6,4,5]],
                     [rotated_indices[i] for i in [4,6,2]],
@@ -525,7 +528,7 @@ class QTreeElement():
                     [rotated_indices[i] for i in [0,2,6]]
                 ]
             else:
-                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
+                rotated_indices = roll_list_left(self.nodes_numbers, positions= 2 * self.element_type[1]//90)
                 new_nodes_numbers = [
                     [rotated_indices[i] for i in [6,4,5]],
                     [rotated_indices[i] for i in [4,6,2]],
@@ -656,6 +659,10 @@ class QTreeMesh():
         cells attributes, and detect cell modes based on the
         presence and location of edge points 
         """
+        def top_right_finder(edge_nums):
+            node_numbers = [n-1 for n in edge_nums]
+            top_right_node_index = np.lexsort((self.nodes[node_numbers][:,0], self.nodes[node_numbers][:,1]))
+            return edge_nums[top_right_node_index[-1]]
 
         for leaf in self.leaves:
             newedge = list()
@@ -664,7 +671,7 @@ class QTreeMesh():
             newedge.append(leaf.edge_points_numbers[0])
             if leaf.south_neighbor() is not None:
                 if leaf.south_neighbor().divided:
-                    newedge.append(leaf.south_neighbor().north_west.edge_points_numbers[2])
+                    newedge.append(top_right_finder(leaf.south_neighbor().north_west.edge_points_numbers))
                     mode.append(True)
                 else:
                     mode.append(False)
@@ -694,7 +701,7 @@ class QTreeMesh():
             newedge.append(leaf.edge_points_numbers[3])
             if leaf.west_neighbor() is not None:
                 if leaf.west_neighbor().divided:
-                    newedge.append(leaf.west_neighbor().south_east.edge_points_numbers[2])
+                    newedge.append(top_right_finder(leaf.west_neighbor().south_east.edge_points_numbers))
                     mode.append(True)
                 else:
                     mode.append(False)
