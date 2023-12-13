@@ -8,7 +8,7 @@ import numpy as np
 from matplotlib.pyplot import figure, fill, show, axis
 
 
-class Point():
+class Point:
     """
     A class used to represent a Point.
 
@@ -29,13 +29,14 @@ class Point():
         Return a Point object from summation of current Point coordinates
         with a second pair of coordinates.
     """
+
     def __init__(self, coord):
         self.x_coord = coord[0]
         self.y_coord = coord[1]
         self.xy_coord = coord
 
     def coord_sum(self, second_coord):
-        '''
+        """
         Return a Point object from summation of current Point coordinates
         with a second pair of coordinates.
 
@@ -49,14 +50,15 @@ class Point():
         new_point : tuple
             Point object.
 
-        '''
-        new_point = Point((self.x_coord + second_coord[0],
-                           self.y_coord + second_coord[1]))
+        """
+        new_point = Point(
+            (self.x_coord + second_coord[0], self.y_coord + second_coord[1])
+        )
 
         return new_point
 
 
-class QTree():
+class QTree:
     """
     A class used to represent a quadtree.
 
@@ -84,10 +86,10 @@ class QTree():
     dimension : int
         Dimension of the cell (number of pixels in each direction).
     depth : int, optional
-        Depth of the node in tree. It's 0 for the root.   
+        Depth of the node in tree. It's 0 for the root.
     property : float
-        An indicator for material properties calculated by averaging 
-        the pixels intensities.  
+        An indicator for material properties calculated by averaging
+        the pixels intensities.
     divided : bool
         Indicate wether the cell is divided (is an inner node) or not (is a leaf).
     count_leaves : int
@@ -100,7 +102,7 @@ class QTree():
         Address the cell located in southwest part of current cell. None for leaves.
     south_east : None or QTree object
         Address the cell located in southeast part of current cell. None for leaves.
-    
+
 
     Methods
     -------
@@ -109,16 +111,16 @@ class QTree():
     save_leaves()
         A method that returns a list of external nodes (leaves).
     north_neighbor()
-        A recursive function that return north neighbor of the cell. 
+        A recursive function that return north neighbor of the cell.
         return none if the cell is on the top of the image.
     south_neighbor()
-        A recursive function that return south neighbor of the cell. 
+        A recursive function that return south neighbor of the cell.
         return none if the cell is on the bottom of the image.
     west_neighbor()
-        A recursive function that return west neighbor of the cell. 
+        A recursive function that return west neighbor of the cell.
         return none if the cell is on the left side of the image.
     east_neighbor()
-        A recursive function that return east neighbor of the cell. 
+        A recursive function that return east neighbor of the cell.
         return none if the cell is on the right side of the image.
     need_split(node):
         Check 4 sides neighbors for more than 2:1 ratio. Return True
@@ -127,8 +129,16 @@ class QTree():
         Balance QTree for 2:1 ratio.
 
     """
-    def __init__(self, parent, array, crit=1, scale=1.,
-                 bottom_left_corner=Point((0.0, 0.0)), depth = 0):
+
+    def __init__(
+        self,
+        parent,
+        array,
+        crit=1,
+        scale=1.0,
+        bottom_left_corner=Point((0.0, 0.0)),
+        depth=0,
+    ):
         self.north_west = None  # NorthWest Section Initiated Empty
         self.north_east = None  # NorthEast Section Initiated Empty
         self.south_west = None  # SouthWest Section Initiated Empty
@@ -143,11 +153,12 @@ class QTree():
         self.property = np.mean(array)  # To define material properties by Averaging
         self.bottom_left_corner = bottom_left_corner  # BottomLeft Coordinates
         self.top_right_corner = bottom_left_corner.coord_sum(
-            (array.shape[1]*scale, array.shape[0]*scale))  # TopRight Coordinates
+            (array.shape[1] * scale, array.shape[0] * scale)
+        )  # TopRight Coordinates
         self.dimension = np.sqrt(array.size)  # To define scale requirement
 
         # SPLITTING
-        if (np.max(array)-np.min(array)) > crit:  # Check Splitting Criteria
+        if (np.max(array) - np.min(array)) > crit:  # Check Splitting Criteria
             self.sectors()
 
     def sectors(self):
@@ -156,7 +167,7 @@ class QTree():
 
         Parameters
         ----------
-        
+
         Returns
         -------
         None.
@@ -165,26 +176,49 @@ class QTree():
         self.divided = True
         self.depth += 1
         size = self.array.shape
-        bottom_left_north_west = self.bottom_left_corner.\
-                                 coord_sum((0, (size[0]/2)*self.scale))
-        self.north_west = QTree(self,self.array[0:size[0]//2, 0:size[1]//2],
-                                self.crit, self.scale, bottom_left_north_west,
-                                self.depth)
-        bottom_left_north_east = self.bottom_left_corner.\
-                                 coord_sum(((size[1]/2)*self.scale,
-                                            (size[0]/2)*self.scale))
-        self.north_east = QTree(self,self.array[0:size[0]//2, size[1]//2:size[1]],
-                                self.crit, self.scale, bottom_left_north_east,
-                                self.depth)
+        bottom_left_north_west = self.bottom_left_corner.coord_sum(
+            (0, (size[0] / 2) * self.scale)
+        )
+        self.north_west = QTree(
+            self,
+            self.array[0 : size[0] // 2, 0 : size[1] // 2],
+            self.crit,
+            self.scale,
+            bottom_left_north_west,
+            self.depth,
+        )
+        bottom_left_north_east = self.bottom_left_corner.coord_sum(
+            ((size[1] / 2) * self.scale, (size[0] / 2) * self.scale)
+        )
+        self.north_east = QTree(
+            self,
+            self.array[0 : size[0] // 2, size[1] // 2 : size[1]],
+            self.crit,
+            self.scale,
+            bottom_left_north_east,
+            self.depth,
+        )
         bottom_left_south_west = self.bottom_left_corner
-        self.south_west = QTree(self, self.array[size[0]//2:size[0], 0:size[1]//2],
-                                self.crit, self.scale, bottom_left_south_west,
-                                self.depth)
-        bottom_left_south_east = self.bottom_left_corner.\
-                                 coord_sum(((size[1]/2)*self.scale, 0))
-        self.south_east = QTree(self,self.array[size[0]//2:size[0], size[1]//2:size[1]],
-                                self.crit, self.scale, bottom_left_south_east,
-                                self.depth)
+        self.south_west = QTree(
+            self,
+            self.array[size[0] // 2 : size[0], 0 : size[1] // 2],
+            self.crit,
+            self.scale,
+            bottom_left_south_west,
+            self.depth,
+        )
+        bottom_left_south_east = self.bottom_left_corner.coord_sum(
+            ((size[1] / 2) * self.scale, 0)
+        )
+        self.south_east = QTree(
+            self,
+            self.array[size[0] // 2 : size[0], size[1] // 2 : size[1]],
+            self.crit,
+            self.scale,
+            bottom_left_south_east,
+            self.depth,
+        )
+
     @property
     def count_leaves(self):
         """
@@ -205,20 +239,26 @@ class QTree():
             return 0
 
         # If the node is a leaf then children will be "None" -> return 1
-        if (self.north_west is None and self.north_east is None and
-            self.south_west is None and self.south_east is None):
+        if (
+            self.north_west is None
+            and self.north_east is None
+            and self.south_west is None
+            and self.south_east is None
+        ):
             return 1
 
         # Now we count the leaves in subtrees and return the sum
-        return self.north_west.count_leaves +\
-               self.north_east.count_leaves +\
-               self.south_west.count_leaves +\
-               self.south_east.count_leaves
+        return (
+            self.north_west.count_leaves
+            + self.north_east.count_leaves
+            + self.south_west.count_leaves
+            + self.south_east.count_leaves
+        )
 
     def save_leaves(self):
         """
         A function that stores all the leaves.
-        
+
         Parameters
         ----------
         root : QTree class
@@ -227,7 +267,7 @@ class QTree():
         Returns
         -------
         leaves_list : list
-            A list of all leaves.    
+            A list of all leaves.
         """
 
         # Stack to store all the nodes of tree
@@ -360,29 +400,37 @@ class QTree():
 
         Returns
         -------
-            boolean 
+            boolean
         """
         if node is None:
             return False
         if node.north_neighbor() is not None:
             if node.north_neighbor().divided:
-                if (node.north_neighbor().south_west.divided or
-                    node.north_neighbor().south_east.divided):
+                if (
+                    node.north_neighbor().south_west.divided
+                    or node.north_neighbor().south_east.divided
+                ):
                     return True
         if node.south_neighbor() is not None:
             if node.south_neighbor().divided:
-                if (node.south_neighbor().north_west.divided or
-                    node.south_neighbor().north_east.divided):
+                if (
+                    node.south_neighbor().north_west.divided
+                    or node.south_neighbor().north_east.divided
+                ):
                     return True
         if node.west_neighbor() is not None:
             if node.west_neighbor().divided:
-                if (node.west_neighbor().north_east.divided or
-                    node.west_neighbor().south_east.divided):
+                if (
+                    node.west_neighbor().north_east.divided
+                    or node.west_neighbor().south_east.divided
+                ):
                     return True
         if node.east_neighbor() is not None:
             if node.east_neighbor().divided:
-                if (node.east_neighbor().north_west.divided or
-                    node.east_neighbor().south_west.divided):
+                if (
+                    node.east_neighbor().north_west.divided
+                    or node.east_neighbor().south_west.divided
+                ):
                     return True
 
         return False
@@ -392,16 +440,22 @@ class QTree():
         Balance QTree for 2:1 ratio.
 
         Returns
-        ------- 
+        -------
         """
         leaves = self.save_leaves()
         while len(leaves) != 0:
-
             node = leaves.pop()
             if not node.divided:
                 if self.need_split(node):
                     node.sectors()
-                    leaves.extend([node.south_west,node.south_east,node.north_west,node.north_east])
+                    leaves.extend(
+                        [
+                            node.south_west,
+                            node.south_east,
+                            node.north_west,
+                            node.north_east,
+                        ]
+                    )
                     if self.need_split(node.north_neighbor()):
                         leaves.append(node.north_neighbor())
                     if self.need_split(node.south_neighbor()):
@@ -411,7 +465,8 @@ class QTree():
                     if self.need_split(node.east_neighbor()):
                         leaves.append(node.east_neighbor())
 
-class QTreeElement():
+
+class QTreeElement:
     """
     A class used to represent a quadtree element.
 
@@ -420,21 +475,21 @@ class QTreeElement():
     Attributes
     ----------
     number : int
-        Element number label. 
+        Element number label.
     nodes_numbers : list(int)
         Number of nodes of the element. The order of nodes is counterclockwise.
     nodes_coordinates : list(tuple)
         A list that contains a tuple of x-y coordinates of the nodes
         based on nodes_numbers.
     element_type : list()
-        A list that contains three values. First value indicate the element 
-        mode based on basic modes (1 to 6). The second value indicate the 
+        A list that contains three values. First value indicate the element
+        mode based on basic modes (1 to 6). The second value indicate the
         angle of rotation that element needs to convert to basic modes. The
         third value indicate scale parameter. [Used for SBFEM mesh]
     element_property : float
         Element indicator of material properties calculated by averaging
-        the pixels intensities.   
-    
+        the pixels intensities.
+
 
 
     Methods
@@ -442,8 +497,10 @@ class QTreeElement():
     quad_treatment(force_triangulate=False)
         Modify a quadtree element by handling hanging nodes
     """
-    def __init__(self,label,nodes_numbers,nodes_coordinates,
-                 element_type,element_property) -> None:
+
+    def __init__(
+        self, label, nodes_numbers, nodes_coordinates, element_type, element_property
+    ) -> None:
         self.number = label
         self.nodes_numbers = nodes_numbers
         self.nodes_coordinates = nodes_coordinates
@@ -471,6 +528,7 @@ class QTreeElement():
             A list containing the modified node numbers for the mesh, following
             the specified treatment.
         """
+
         def roll_list_left(lst, positions=1):
             positions = positions % len(lst)
             return lst[positions:] + lst[:positions]
@@ -479,85 +537,97 @@ class QTreeElement():
         if self.element_type[0] == 1:
             if force_triangulate:
                 new_nodes_numbers = [
-                [self.nodes_numbers[i] for i in [0,1,2]],
-                [self.nodes_numbers[i] for i in [0,2,3]]
-            ]
+                    [self.nodes_numbers[i] for i in [0, 1, 2]],
+                    [self.nodes_numbers[i] for i in [0, 2, 3]],
+                ]
             else:
                 new_nodes_numbers = [self.nodes_numbers]
         elif self.element_type[0] == 2:
-            rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
+            rotated_indices = roll_list_left(
+                self.nodes_numbers, positions=self.element_type[1] // 90
+            )
             new_nodes_numbers = [
-                [rotated_indices[i] for i in [4,0,1]],
-                [rotated_indices[i] for i in [4,1,3]],
-                [rotated_indices[i] for i in [3,1,2]]
+                [rotated_indices[i] for i in [4, 0, 1]],
+                [rotated_indices[i] for i in [4, 1, 3]],
+                [rotated_indices[i] for i in [3, 1, 2]],
             ]
         elif self.element_type[0] == 3:
             t = 0
             if self.element_type[1] == 270:
                 t += 1
-            rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+t)
+            rotated_indices = roll_list_left(
+                self.nodes_numbers, positions=self.element_type[1] // 90 + t
+            )
             new_nodes_numbers = [
-                [rotated_indices[i] for i in [5,0,1]],
-                [rotated_indices[i] for i in [1,2,3]],
-                [rotated_indices[i] for i in [3,4,5]],
-                [rotated_indices[i] for i in [5,1,3]]
+                [rotated_indices[i] for i in [5, 0, 1]],
+                [rotated_indices[i] for i in [1, 2, 3]],
+                [rotated_indices[i] for i in [3, 4, 5]],
+                [rotated_indices[i] for i in [5, 1, 3]],
             ]
         elif self.element_type[0] == 4:
             if force_triangulate:
-                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
+                rotated_indices = roll_list_left(
+                    self.nodes_numbers, positions=self.element_type[1] // 90
+                )
                 new_nodes_numbers = [
-                [rotated_indices[i] for i in [5,0,1]],
-                [rotated_indices[i] for i in [1,2,3]],
-                [rotated_indices[i] for i in [4,1,3]],
-                [rotated_indices[i] for i in [5,1,4]]
-            ]
+                    [rotated_indices[i] for i in [5, 0, 1]],
+                    [rotated_indices[i] for i in [1, 2, 3]],
+                    [rotated_indices[i] for i in [4, 1, 3]],
+                    [rotated_indices[i] for i in [5, 1, 4]],
+                ]
             else:
-                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
+                rotated_indices = roll_list_left(
+                    self.nodes_numbers, positions=self.element_type[1] // 90
+                )
                 new_nodes_numbers = [
-                    [rotated_indices[i] for i in [0,1,4,5]],
-                    [rotated_indices[i] for i in [1,2,3,4]]
+                    [rotated_indices[i] for i in [0, 1, 4, 5]],
+                    [rotated_indices[i] for i in [1, 2, 3, 4]],
                 ]
         elif self.element_type[0] == 5:
             if force_triangulate:
-                rotated_indices = roll_list_left(self.nodes_numbers, positions= 2 * self.element_type[1]//90)
+                rotated_indices = roll_list_left(
+                    self.nodes_numbers, positions=2 * self.element_type[1] // 90
+                )
                 new_nodes_numbers = [
-                    [rotated_indices[i] for i in [6,4,5]],
-                    [rotated_indices[i] for i in [4,6,2]],
-                    [rotated_indices[i] for i in [2,3,4]],
-                    [rotated_indices[i] for i in [0,1,2]],
-                    [rotated_indices[i] for i in [0,2,6]]
+                    [rotated_indices[i] for i in [6, 4, 5]],
+                    [rotated_indices[i] for i in [4, 6, 2]],
+                    [rotated_indices[i] for i in [2, 3, 4]],
+                    [rotated_indices[i] for i in [0, 1, 2]],
+                    [rotated_indices[i] for i in [0, 2, 6]],
                 ]
             else:
-                rotated_indices = roll_list_left(self.nodes_numbers, positions= 2 * self.element_type[1]//90)
+                rotated_indices = roll_list_left(
+                    self.nodes_numbers, positions=2 * self.element_type[1] // 90
+                )
                 new_nodes_numbers = [
-                    [rotated_indices[i] for i in [6,4,5]],
-                    [rotated_indices[i] for i in [4,6,2]],
-                    [rotated_indices[i] for i in [2,3,4]],
-                    [rotated_indices[i] for i in [0,1,2,6]]
+                    [rotated_indices[i] for i in [6, 4, 5]],
+                    [rotated_indices[i] for i in [4, 6, 2]],
+                    [rotated_indices[i] for i in [2, 3, 4]],
+                    [rotated_indices[i] for i in [0, 1, 2, 6]],
                 ]
         else:
             if force_triangulate:
                 new_nodes_numbers = [
-                    [self.nodes_numbers[i] for i in [7,0,1]],
-                    [self.nodes_numbers[i] for i in [1,2,3]],
-                    [self.nodes_numbers[i] for i in [3,4,5]],
-                    [self.nodes_numbers[i] for i in [5,6,7]],
-                    [self.nodes_numbers[i] for i in [7,1,3]],
-                    [self.nodes_numbers[i] for i in [7,3,5]]
+                    [self.nodes_numbers[i] for i in [7, 0, 1]],
+                    [self.nodes_numbers[i] for i in [1, 2, 3]],
+                    [self.nodes_numbers[i] for i in [3, 4, 5]],
+                    [self.nodes_numbers[i] for i in [5, 6, 7]],
+                    [self.nodes_numbers[i] for i in [7, 1, 3]],
+                    [self.nodes_numbers[i] for i in [7, 3, 5]],
                 ]
             else:
                 new_nodes_numbers = [
-                    [self.nodes_numbers[i] for i in [7,0,1]],
-                    [self.nodes_numbers[i] for i in [1,2,3]],
-                    [self.nodes_numbers[i] for i in [3,4,5]],
-                    [self.nodes_numbers[i] for i in [5,6,7]],
-                    [self.nodes_numbers[i] for i in [7,1,3,5]]
+                    [self.nodes_numbers[i] for i in [7, 0, 1]],
+                    [self.nodes_numbers[i] for i in [1, 2, 3]],
+                    [self.nodes_numbers[i] for i in [3, 4, 5]],
+                    [self.nodes_numbers[i] for i in [5, 6, 7]],
+                    [self.nodes_numbers[i] for i in [7, 1, 3, 5]],
                 ]
 
         return new_nodes_numbers
 
 
-class QTreeMesh():
+class QTreeMesh:
     """
     A class used to represent a quadtree mesh.
 
@@ -574,14 +644,14 @@ class QTreeMesh():
     elements : list
         List of mesh elements as QTreeElement objects.
     nodes : list
-        List of coordinates of mesh nodes.      
-    
+        List of coordinates of mesh nodes.
+
 
 
     Methods
     -------
     create_elements()
-        Generate elements from cells in quad-tree. 
+        Generate elements from cells in quad-tree.
     labeling()
         Labeling cells and their corner points.
     refactor_edge()
@@ -596,7 +666,8 @@ class QTreeMesh():
     adjust_mesh_for_FEM()
         Adjust the quadtree mesh for Finite Element Method (FEM) simulations.
     """
-    def __init__(self, quad_tree:QTree, balancing = True) -> None:
+
+    def __init__(self, quad_tree: QTree, balancing=True) -> None:
         self.quad_tree = quad_tree
         if balancing:
             self.quad_tree.balancing()
@@ -614,54 +685,64 @@ class QTreeMesh():
         for leaf in self.leaves:
             label = leaf.cell_number
             node_number = leaf.edge_points_numbers
-            node_coordinate = [self.nodes[n-1,:] for n in node_number]
+            node_coordinate = [self.nodes[n - 1, :] for n in node_number]
             element_type = leaf.cell_type
             element_property = leaf.property
-            self.elements.append(QTreeElement(label,node_number,node_coordinate,
-                                              element_type,element_property))
-
-
+            self.elements.append(
+                QTreeElement(
+                    label, node_number, node_coordinate, element_type, element_property
+                )
+            )
 
     def labeling(self):
         """
         A function that labels all cells and their corresponding corner
-        points and add corner points to mesh nodes.   
+        points and add corner points to mesh nodes.
         """
-        self.nodes = np.array([[+np.inf,-np.inf]])
+        self.nodes = np.array([[+np.inf, -np.inf]])
         label = 1
 
         for leaf in self.leaves:
             leaf.edge_points_numbers = []
             leaf.nodes_coordinate = []
             leaf.nodes_coordinate.append(np.array(leaf.bottom_left_corner.xy_coord))
-            leaf.nodes_coordinate.append(np.array((leaf.top_right_corner.x_coord,
-                            leaf.bottom_left_corner.y_coord)))
+            leaf.nodes_coordinate.append(
+                np.array(
+                    (leaf.top_right_corner.x_coord, leaf.bottom_left_corner.y_coord)
+                )
+            )
             leaf.nodes_coordinate.append(np.array(leaf.top_right_corner.xy_coord))
 
-            leaf.nodes_coordinate.append(np.array((leaf.bottom_left_corner.x_coord,
-                                      leaf.top_right_corner.y_coord)))
-            for node in leaf.nodes_coordinate:  #Creating Element node list
-                if any(np.equal(self.nodes,node).all(1)):
+            leaf.nodes_coordinate.append(
+                np.array(
+                    (leaf.bottom_left_corner.x_coord, leaf.top_right_corner.y_coord)
+                )
+            )
+            for node in leaf.nodes_coordinate:  # Creating Element node list
+                if any(np.equal(self.nodes, node).all(1)):
                     leaf.edge_points_numbers.append(
-                        np.where(np.equal(self.nodes,node).all(1) == True)[0][0])
+                        np.where(np.equal(self.nodes, node).all(1) == True)[0][0]
+                    )
                 else:
-                    self.nodes = np.r_[self.nodes,[node]]
-                    leaf.edge_points_numbers.append(self.nodes.shape[0]-1)
+                    self.nodes = np.r_[self.nodes, [node]]
+                    leaf.edge_points_numbers.append(self.nodes.shape[0] - 1)
 
             leaf.cell_number = label
             label += 1
-        self.nodes = self.nodes[1:,:]
-
+        self.nodes = self.nodes[1:, :]
 
     def refactor_edge(self):
         """
-        A function that consider edge points, add them to 
+        A function that consider edge points, add them to
         cells attributes, and detect cell modes based on the
-        presence and location of edge points 
+        presence and location of edge points
         """
+
         def top_right_finder(edge_nums):
-            node_numbers = [n-1 for n in edge_nums]
-            top_right_node_index = np.lexsort((self.nodes[node_numbers][:,0], self.nodes[node_numbers][:,1]))
+            node_numbers = [n - 1 for n in edge_nums]
+            top_right_node_index = np.lexsort(
+                (self.nodes[node_numbers][:, 0], self.nodes[node_numbers][:, 1])
+            )
             return edge_nums[top_right_node_index[-1]]
 
         for leaf in self.leaves:
@@ -671,7 +752,11 @@ class QTreeMesh():
             newedge.append(leaf.edge_points_numbers[0])
             if leaf.south_neighbor() is not None:
                 if leaf.south_neighbor().divided:
-                    newedge.append(top_right_finder(leaf.south_neighbor().north_west.edge_points_numbers))
+                    newedge.append(
+                        top_right_finder(
+                            leaf.south_neighbor().north_west.edge_points_numbers
+                        )
+                    )
                     mode.append(True)
                 else:
                     mode.append(False)
@@ -681,7 +766,9 @@ class QTreeMesh():
             newedge.append(leaf.edge_points_numbers[1])
             if leaf.east_neighbor() is not None:
                 if leaf.east_neighbor().divided:
-                    newedge.append(leaf.east_neighbor().north_west.edge_points_numbers[0])
+                    newedge.append(
+                        leaf.east_neighbor().north_west.edge_points_numbers[0]
+                    )
                     mode.append(True)
                 else:
                     mode.append(False)
@@ -691,7 +778,9 @@ class QTreeMesh():
             newedge.append(leaf.edge_points_numbers[2])
             if leaf.north_neighbor() is not None:
                 if leaf.north_neighbor().divided:
-                    newedge.append(leaf.north_neighbor().south_east.edge_points_numbers[0])
+                    newedge.append(
+                        leaf.north_neighbor().south_east.edge_points_numbers[0]
+                    )
                     mode.append(True)
                 else:
                     mode.append(False)
@@ -701,7 +790,11 @@ class QTreeMesh():
             newedge.append(leaf.edge_points_numbers[3])
             if leaf.west_neighbor() is not None:
                 if leaf.west_neighbor().divided:
-                    newedge.append(top_right_finder(leaf.west_neighbor().south_east.edge_points_numbers))
+                    newedge.append(
+                        top_right_finder(
+                            leaf.west_neighbor().south_east.edge_points_numbers
+                        )
+                    )
                     mode.append(True)
                 else:
                     mode.append(False)
@@ -718,7 +811,7 @@ class QTreeMesh():
         """
         A function that detect cell modes based on the
         presence and location of edge points.
-        
+
         Basic modes:
          *---* *---* *---*
          |   | |   | |   |
@@ -730,54 +823,54 @@ class QTreeMesh():
          | 4 | * 5 * * 6 *
          |   | |   | |   |
          *-*-* *---* *-*-*
-        
+
         Parameters
         ----------
         mode : list
-            A list of booleans that indicates the presence of 
+            A list of booleans that indicates the presence of
             the edge node on each edge, starting from bottom edge
             and rotating counter-clockwise.
-            
+
 
         Returns
         -------
         _ : list
             A list that first index determine basic mode number and
-            the second index determine the angle of rotation needed 
-            to acquire the basic mode.    
+            the second index determine the angle of rotation needed
+            to acquire the basic mode.
         """
 
         number_edge_points = mode.count(True)
         if number_edge_points == 0:
-            return [1,0]
+            return [1, 0]
         elif number_edge_points == 1:
-            return [2,mode.index(True)*90]
+            return [2, mode.index(True) * 90]
         elif number_edge_points == 2:
-            if mode == [True,True,False,False]:
-                return [3,0]
-            elif mode == [False,True,True,False]:
-                return [3,90]
-            elif mode == [False,False,True,True]:
-                return [3,180]
-            elif mode == [True,False,False,True]:
-                return [3,270]
-            elif mode == [True,False,True,False]:
-                return [4,0]
-            elif mode == [False,True,False,True]:
-                return [4,90]
+            if mode == [True, True, False, False]:
+                return [3, 0]
+            elif mode == [False, True, True, False]:
+                return [3, 90]
+            elif mode == [False, False, True, True]:
+                return [3, 180]
+            elif mode == [True, False, False, True]:
+                return [3, 270]
+            elif mode == [True, False, True, False]:
+                return [4, 0]
+            elif mode == [False, True, False, True]:
+                return [4, 90]
         elif number_edge_points == 3:
-            return [5,mode.index(False)*90]
+            return [5, mode.index(False) * 90]
         elif number_edge_points == 4:
-            return [6,0]
+            return [6, 0]
 
-    def draw(self, fill_inside = True, edge_color = None, save_name = None):
+    def draw(self, fill_inside=True, edge_color=None, save_name=None):
         """
         Draw elements with filling inside.
 
         Parameters
         ----------
         fill_inside : bool, optional
-            Fill elements with grayscale color based on 
+            Fill elements with grayscale color based on
             element property.
         edge_color : None/str, optional
             The color for element edges.
@@ -789,19 +882,23 @@ class QTreeMesh():
             None.
 
         """
-        fig = figure(figsize=(10,10),frameon=False)
-        axis('off')
+        fig = figure(figsize=(10, 10), frameon=False)
+        axis("off")
         for element in self.elements:
-            fill([p[0] for p in element.nodes_coordinates],
+            fill(
+                [p[0] for p in element.nodes_coordinates],
                 [p[1] for p in element.nodes_coordinates],
-                facecolor = str(element.element_property/255) if fill_inside else 'white',
-                edgecolor=edge_color)
+                facecolor=str(element.element_property / 255)
+                if fill_inside
+                else "white",
+                edgecolor=edge_color,
+            )
         fig.tight_layout()
         show()
         if save_name:
             fig.savefig(save_name)
 
-    def vtk_export(self,filename = "output.vtk"):
+    def vtk_export(self, filename="output.vtk"):
         """
         Export mesh as unstructured grid to .vtk file.
         Creating the file is done manually, and no library is used.
@@ -824,12 +921,11 @@ class QTreeMesh():
         for each in self.nodes:
             file_open.write(f"{each[0]} {each[1]} 0.0\n")
         total_cells = len(self.elements)
-        new_connectivity = [np.array(each.nodes_numbers)-1 for each in self.elements]
-        total_data = sum([i.shape[0] for i in new_connectivity])+len(new_connectivity)
+        new_connectivity = [np.array(each.nodes_numbers) - 1 for each in self.elements]
+        total_data = sum([i.shape[0] for i in new_connectivity]) + len(new_connectivity)
         file_open.write(f"CELLS {total_cells} {total_data}\n")
 
         for each in new_connectivity:
-
             file_open.write(f"{each.shape[0]} ")
             file_open.writelines(str(np.flip(each))[1:-1])
             file_open.write("\n")
@@ -871,6 +967,7 @@ class QTreeMesh():
 
         return self.nodes, fem_elements, fem_properties
 
+
 def image_preprocess(image_array):
     """
     A function to make image square and of order 2^n.
@@ -888,10 +985,10 @@ def image_preprocess(image_array):
 
     if image_array.shape[0] > image_array.shape[1]:
         diff = image_array.shape[0] - image_array.shape[1]
-        image_array = np.hstack((image_array,np.zeros((image_array.shape[0],diff))))
+        image_array = np.hstack((image_array, np.zeros((image_array.shape[0], diff))))
     elif image_array.shape[0] < image_array.shape[1]:
         diff = image_array.shape[1] - image_array.shape[0]
-        image_array = np.vstack((image_array,np.zeros((diff,image_array.shape[1]))))
+        image_array = np.vstack((image_array, np.zeros((diff, image_array.shape[1]))))
 
     base = 2
     order_y = 2
@@ -903,7 +1000,7 @@ def image_preprocess(image_array):
     diffy = base - image_array.shape[0]
 
     if diffy != 0:
-        image_array = np.vstack((image_array,np.zeros((diffy,image_array.shape[1]))))
+        image_array = np.vstack((image_array, np.zeros((diffy, image_array.shape[1]))))
 
     base = 2
     order_x = 2
@@ -915,6 +1012,6 @@ def image_preprocess(image_array):
     diffx = base - image_array.shape[1]
 
     if diffx != 0:
-        image_array = np.hstack((image_array,np.zeros((image_array.shape[0],diffx))))
+        image_array = np.hstack((image_array, np.zeros((image_array.shape[0], diffx))))
 
     return image_array
