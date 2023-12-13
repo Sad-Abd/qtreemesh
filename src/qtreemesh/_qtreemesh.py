@@ -482,16 +482,17 @@ class QTreeElement():
                 [self.nodes_numbers[i] for i in [0,1,2]],
                 [self.nodes_numbers[i] for i in [0,2,3]]
             ]
-            new_nodes_numbers = self.nodes_numbers
+            else:
+                new_nodes_numbers = [self.nodes_numbers]
         elif self.element_type[0] == 2:
-            rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+            rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
             new_nodes_numbers = [
                 [rotated_indices[i] for i in [4,0,1]],
                 [rotated_indices[i] for i in [4,1,3]],
                 [rotated_indices[i] for i in [3,1,2]]
             ]
         elif self.element_type[0] == 3:
-            rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+            rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
             new_nodes_numbers = [
                 [rotated_indices[i] for i in [5,0,1]],
                 [rotated_indices[i] for i in [1,2,3]],
@@ -500,7 +501,7 @@ class QTreeElement():
             ]
         elif self.element_type[0] == 4:
             if force_triangulate:
-                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
                 new_nodes_numbers = [
                 [rotated_indices[i] for i in [5,0,1]],
                 [rotated_indices[i] for i in [1,2,3]],
@@ -508,14 +509,14 @@ class QTreeElement():
                 [rotated_indices[i] for i in [5,1,4]]
             ]
             else:
-                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
                 new_nodes_numbers = [
                     [rotated_indices[i] for i in [0,1,4,5]],
                     [rotated_indices[i] for i in [1,2,3,4]]
                 ]
         elif self.element_type[0] == 5:
             if force_triangulate:
-                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
                 new_nodes_numbers = [
                     [rotated_indices[i] for i in [6,4,5]],
                     [rotated_indices[i] for i in [4,6,2]],
@@ -524,7 +525,7 @@ class QTreeElement():
                     [rotated_indices[i] for i in [0,2,6]]
                 ]
             else:
-                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90+1)
+                rotated_indices = roll_list_left(self.nodes_numbers, positions=self.element_type[1]//90)
                 new_nodes_numbers = [
                     [rotated_indices[i] for i in [6,4,5]],
                     [rotated_indices[i] for i in [4,6,2]],
