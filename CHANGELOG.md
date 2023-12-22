@@ -1,11 +1,14 @@
 # Changelog
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-- Add a method 'vtk_export()' to create an unstructured grid vtk file from mesh.
+## [0.1.3]
+- Added the method `adjust_mesh_for_FEM` to generate FEM-compatible mesh from the QuadTreeMesh
+
+## [0.1.2]
+- Added a method 'vtk_export()' to create an unstructured grid vtk file from mesh.
 - Resolved a bug related to adding midpoints to edges. 
 
-## [0.1.01] - 2023-7-17
+## [0.1.1] - 2023-7-17
 
 ### Added
 - Start using a Changelog.
