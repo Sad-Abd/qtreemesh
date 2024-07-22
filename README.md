@@ -9,7 +9,7 @@
 [![MIT License][license-shield]][license-url]
 [![LinkedIn][linkedin-shield]][linkedin-url]
 [![Made with love in SUT (Iran)][sut-badge]][sut-add]
-[![DOI](https://zenodo.org/badge/663074989.svg)](https://zenodo.org/badge/latestdoi/663074989)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8373702.svg)](https://doi.org/10.5281/zenodo.8373702)
 [![Downloads](https://static.pepy.tech/badge/qtreemesh)](https://pepy.tech/project/qtreemesh)
 [![Downloads](https://static.pepy.tech/badge/qtreemesh/month)](https://pepy.tech/project/qtreemesh)
 
