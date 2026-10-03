@@ -194,7 +194,6 @@ Each element in `elements` is a `QTreeElement` object that contains many attribu
 | 4.jpg |  <img src="examples/4.jpg" alt="image 4" width="200px"> | <img src="examples/4_meshed.png" alt="image 4 meshed" width="200px"> |
 | 5.jpg |    <img src="examples/5.jpg" alt="image 5" width="200px">   |   <img src="examples/5_meshed.png" alt="image 5 meshed" width="260px"> |
 | 6.jpg |    <img src="examples/6.jpg" alt="image 6" width="200px">   |   <img src="examples/6_meshed.png" alt="image 6 meshed" width="260px"> |
-| 7.jpg |    <img src="examples/7.jpg" alt="image 7" width="200px">   |   <img src="examples/7_meshed.png" alt="image 7 meshed" width="260px"> |
 
 For more examples, please refer to the files in the [`examples`](examples/) folder and to the docstrings of the package classes.
 
@@ -227,7 +226,7 @@ A complete working example of this pipeline — exporting a generated mesh as in
 
 A __Quadtree__ is a special type of tree where each parent node has exactly four smaller nodes connected to it. Each square in the Quadtree is represented by a node. If a node has children, their squares are the four quadrants of its own square, which is why the tree is called a tree. This means that when you put the smaller squares of the leaves together, they make up the bigger square of the root. 
 
-<img src="https://github.com/Sad-Abd/qtreemesh/blob/main/images/QuadTree1.jpg" alt="QuadTree Illustration">
+<img src="images/QuadTree1.jpg" alt="QuadTree Illustration">
 
 In this figure, labels _NW_, _NE_, _SE_, and _SW_ are representing different quadrants (North-West, North-East, South-East and South-West respectively).
 
@@ -237,7 +236,7 @@ While this algorithm has many applications in various fields of science (e.g., c
 
     In this case, there are a set of points $\{p_i\} : (x_i , y_i)$ (which can be interpreted as the position of objects), and we need to build the quadtree in such a way that every square contains at most $c$ point(s). First we consider the root square which contains all the points. Then we start recursively splitting squares until the criteria $n_p \le c$ met. In following figure, the quadtree of 11 points with $c = 1$ is illustrated:
 
-    <img src="https://github.com/Sad-Abd/qtreemesh/blob/main/images/QuadTree2.jpg" alt="QuadTree for points set">
+    <img src="images/QuadTree2.jpg" alt="QuadTree for points set">
 
     There are many different implementations of this variation of algorithm, for example in [Python](https://www.geeksforgeeks.org/quad-tree/), 
     [C++](https://lisyarus.github.io/blog/programming/2022/12/21/quadtrees.html), and 
@@ -247,7 +246,7 @@ While this algorithm has many applications in various fields of science (e.g., c
     
     This type of problem is very common in mesh generation for CAD models. The domain of interest is defined by some lines that usually separate inside of the domain from outside of it. A common approach is to generate *seed points* on the boundary and create a quadtree just the same as points set problems. There will be some additional steps to convert quadtree to FEM mesh, such as removing the outside squares and trimming of boundary squares. The following figure illustrate quadtree of [a circular domain](https://www.researchgate.net/publication/354207606_Solving_incompressible_Navier--Stokes_equations_on_irregular_domains_and_quadtrees_by_monolithic_approach).
 
-    <img src="https://github.com/Sad-Abd/qtreemesh/blob/main/images/QuadTree3.jpg" alt="Domain boundary problems">
+    <img src="images/QuadTree3.jpg" alt="Domain boundary problems">
     
     
 3. **Digital images problems:**
@@ -276,9 +275,9 @@ While this algorithm has many applications in various fields of science (e.g., c
 - [x] Test suite covering the whole package
 - [ ] Successfully implement in FEM software
   - [x] Handling hanging nodes
-  - [x] Prepare required data
-  - [x] Illustrate usage in open-source FEM programs (see [`examples/solidpy`](examples/solidpy/))
-- [x] Prepare required data for SBFEM (element modes, rotations and scales are provided in `element_type`; the SBFEM implementation itself is developed in the NLSBFEM project)
+  - [ ] Prepare required data
+  - [ ] Illustrate usage in open-source FEM programs (initial tries in [`examples/solidpy`](examples/solidpy/))
+- [ ] Intrinsic SBFEM implementation in the package
 - [ ] Expose a pixel → element lookup and exact per-cell material labels
 
 
