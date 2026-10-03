@@ -60,6 +60,7 @@
         <li><a href="#3-quadtree-algorithm">QuadTree Algorithm</a></li>
         <li><a href="#4-mesh-generation">Mesh Generation</a></li>
         <li><a href="#5-export-and-implementation">Export and Implementation</a></li>
+        <li><a href="#6-pixel-lookup-and-per-cell-labels">Pixel Lookup and Per-Cell Labels</a></li>
       </ol>
     </li>
     <li><a href="#theoretical-explanation">Theoretical Explanation</a></li>
@@ -218,6 +219,17 @@ The default configuration generates FEM elements as triangles. To include both q
 
 A complete working example of this pipeline — exporting a generated mesh as input files for [SolidsPy](https://github.com/AppliedMechanics-EAFIT/SolidsPy), running the analysis, and visualizing the results — is available in the [`examples/solidpy`](examples/solidpy/) folder.
 
+### 6. Pixel Lookup and Per-Cell Labels
+
+For label or multi-material images, the averaged `element_property` may be ambiguous. Two methods provide exact information instead:
+
+```python
+pixel_elem = mesh.pixel_to_element()  # (n, n) array: each pixel -> element number
+labels = mesh.element_labels()        # exact label of each element
+```
+
+`pixel_elem[row, col]` holds the 1-based number of the element covering that pixel (row 0 is the top of the image), so `mesh.elements[pixel_elem[row, col] - 1]` is the element itself. `element_labels()` returns one label per element, aligned with `mesh.elements` — the single intensity shared by all pixels under the cell. It raises a `ValueError` when a cell spans multiple intensities (i.e. the mesh is not label-homogeneous); pass `strict=False` to get the minimum intensity under such cells instead.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Theoretical Explanation
@@ -278,7 +290,7 @@ While this algorithm has many applications in various fields of science (e.g., c
   - [ ] Prepare required data
   - [ ] Illustrate usage in open-source FEM programs (initial tries in [`examples/solidpy`](examples/solidpy/))
 - [ ] Intrinsic SBFEM implementation in the package
-- [ ] Expose a pixel → element lookup and exact per-cell material labels
+- [x] Expose a pixel → element lookup and exact per-cell material labels
 
 
 See the [open issues](https://github.com/Sad-Abd/qtreemesh/issues) for a full list of proposed features (and known issues).

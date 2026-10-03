@@ -679,6 +679,10 @@ class QTreeMesh:
         Export mesh as unstructured grid in vtk file.
     adjust_mesh_for_FEM()
         Adjust the quadtree mesh for Finite Element Method (FEM) simulations.
+    pixel_to_element()
+        Map every pixel to the 1-based number of the element covering it.
+    element_labels()
+        Exact per-cell label of every element from the quadtree image.
     """
 
     def __init__(self, quad_tree: QTree, balancing=True) -> None:
@@ -985,6 +989,76 @@ class QTreeMesh:
             fem_properties += [element.element_property] * len(new_elements)
 
         return self.nodes, fem_elements, fem_properties
+
+    def pixel_to_element(self):
+        """
+        Map every pixel of the preprocessed image to the element covering it.
+
+        Returns
+        -------
+        pixel_elem : numpy array of int, shape (n_rows, n_cols)
+            Entry [row, col] (row 0 = top of the image) holds the 1-based number
+            of the element covering that pixel, so
+            self.elements[pixel_elem[row, col] - 1] is the element itself.
+
+        Raises
+        ------
+        RuntimeError
+            If some pixels are not covered by any element.
+        """
+        scale = self.quad_tree.scale
+        n_rows, n_cols = self.quad_tree.array.shape
+        pixel_elem = -np.ones((n_rows, n_cols), dtype=int)
+        for element in self.elements:
+            xy = np.asarray(element.nodes_coordinates, dtype=float)
+            lo = xy.min(axis=0)
+            hi = xy.max(axis=0)
+            c0 = int(round(lo[0] / scale))
+            r0_bottom = int(round(lo[1] / scale))
+            size_x = int(round((hi[0] - lo[0]) / scale))
+            size_y = int(round((hi[1] - lo[1]) / scale))
+            rows = slice(n_rows - r0_bottom - size_y, n_rows - r0_bottom)
+            pixel_elem[rows, c0 : c0 + size_x] = element.number
+        if (pixel_elem < 0).any():
+            raise RuntimeError("some pixels are not covered by a quadtree cell")
+        return pixel_elem
+
+    def element_labels(self, strict=True):
+        """
+        Exact per-cell label of every element, taken from the quadtree image.
+
+        The label of an element is the single pixel intensity shared by all
+        pixels under it, which - unlike the averaged element_property - is
+        unambiguous for label and multi-material images.
+
+        Parameters
+        ----------
+        strict : bool, optional
+            If True (default), raise a ValueError when a cell spans multiple
+            intensities, since no exact label exists for it. If False, such
+            cells get the minimum intensity under them.
+
+        Returns
+        -------
+        labels : numpy array
+            One label per element, aligned with self.elements.
+        """
+        labels = []
+        inhomogeneous = []
+        for element, leaf in zip(self.elements, self.leaves):
+            values = np.unique(leaf.array)
+            if values.size == 1:
+                labels.append(values.item())
+            else:
+                inhomogeneous.append(element.number)
+                labels.append(values.min())
+        if inhomogeneous and strict:
+            raise ValueError(
+                f"cells {inhomogeneous} span multiple intensities and have no "
+                "exact label; reduce crit so every cell is homogeneous, or "
+                "call with strict=False"
+            )
+        return np.asarray(labels)
 
 
 def image_preprocess(image_array):

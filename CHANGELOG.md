@@ -8,6 +8,11 @@ All notable changes to this project will be documented in this file. The format 
   first-seen order); mesh building on large images is orders of magnitude faster.
 
 ### Added
+- `QTreeMesh.pixel_to_element()`: maps every pixel of the preprocessed image to the
+  1-based number of the element covering it.
+- `QTreeMesh.element_labels()`: exact per-cell label for every element (the single
+  intensity shared by all pixels under the cell), unambiguous for label and
+  multi-material images where the averaged `element_property` is not.
 - `QTree` accepts a `max_size` option (pixels): cells larger than this size are
   split even when their pixels are homogeneous, so uniform regions are no longer
   left as one huge cell. Replaces the checkerboard-image workaround.
