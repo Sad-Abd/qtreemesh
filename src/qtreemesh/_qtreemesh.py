@@ -71,7 +71,11 @@ class QTree:
     array : numpy array
         Corresponding partition of image array.
     crit : int, optional
-        The criteria used for partitioning. Default value is 1.
+        The criteria used for partitioning. A cell splits only when the
+        difference between its maximum and minimum pixel intensities is
+        strictly greater than crit; with the default crit = 1, two regions
+        whose intensities differ by exactly 1 are not split.
+        Default value is 1.
     scale : float, optional
         The ratio between pixels units and real units. For example, when scale is 2,
         each pixel represents a 2*2 ($mm^2$ or $in^2$ or ...) square part of the object.
