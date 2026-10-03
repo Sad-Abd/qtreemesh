@@ -1,6 +1,10 @@
 """
 A module for generating quadtree mesh from an image.
 
+The image is partitioned by a quadtree based on pixel intensities, the leaves
+are converted to mesh elements (with hanging-node handling), and the mesh can
+be exported to VTK or adjusted for FEM analysis.
+
 Author : Sadjad Abedi
 """
 
@@ -118,6 +122,8 @@ class QTree:
     -------
     sectors()
         A recursive function to partition the array and create subtrees.
+    count_leaves()
+        A property that returns the total number of external nodes (leaves).
     save_leaves()
         A method that returns a list of external nodes (leaves).
     north_neighbor()
@@ -183,9 +189,6 @@ class QTree:
         """
         A recursive function to create subtrees.
 
-        Parameters
-        ----------
-
         Returns
         -------
         None.
@@ -244,16 +247,12 @@ class QTree:
     @property
     def count_leaves(self):
         """
-        A recursive function to calculate the number of tree leaves.
-
-        Parameters
-        ----------
-        node : QTree class
-            A node of QTree.
+        A property that recursively calculates the number of tree leaves.
 
         Returns
         -------
-            Summation of leaves of subtrees
+        int
+            Summation of leaves of subtrees.
 
         """
         # If the node itself is "None" there are no leaves ->  return 0
@@ -281,15 +280,10 @@ class QTree:
         """
         A function that stores all the leaves.
 
-        Parameters
-        ----------
-        root : QTree class
-            Root of the tree.
-
         Returns
         -------
         leaves_list : list
-            A list of all leaves.
+            A list of all external nodes (leaves) of the tree.
         """
 
         # Stack to store all the nodes of tree
@@ -463,6 +457,7 @@ class QTree:
 
         Returns
         -------
+        None.
         """
         leaves = self.save_leaves()
         while len(leaves) != 0:
@@ -538,9 +533,6 @@ class QTreeElement:
 
         Parameters:
         -----------
-        self : object
-            An instance of the QTreeElement processing class.
-
         force_triangulate : bool, optional (default=True)
             If True, forces triangulation when applicable.
 
@@ -700,7 +692,11 @@ class QTreeMesh:
 
     def create_elements(self):
         """
-        The main function of class that generate elements from quad-tree cells.
+        Generate mesh elements from the quad-tree leaves.
+
+        Labels every leaf cell and its corner nodes (labeling), inserts the
+        hanging nodes present on cell edges and detects the element type
+        (refactor_edge), then appends one QTreeElement per leaf to elements.
         """
         self.labeling()
         self.refactor_edge()
@@ -718,8 +714,10 @@ class QTreeMesh:
 
     def labeling(self):
         """
-        A function that labels all cells and their corresponding corner
-        points and add corner points to mesh nodes.
+        Label all cells and their corner points, and add corner points to mesh nodes.
+
+        Cells are numbered 1-based in leaf traversal order; node numbers are
+        1-based in first-seen order, so node k is stored at self.nodes[k - 1].
         """
         index = {}
         coords = []
@@ -965,14 +963,19 @@ class QTreeMesh:
         This method processes the quadtree mesh to make it suitable for FEM simulations by
         handling hanging nodes.
 
-        Args:
-            force_triangulation (bool, optional): If True, forces triangulation when applicable.
+        Parameters:
+        -----------
+        force_triangulation : bool, optional
+            If True, forces triangulation when applicable (default True).
 
         Returns:
-            tuple: A tuple containing the adjusted mesh components.
-            - nodes (list of tuples): List of (x, y) coordinates of nodes in the mesh.
-            - fem_elements (list of lists of int): List of modified element node numbers.
-            - fem_properties (list of float): List of element properties calculated by averaging pixel intensities.
+        --------
+        nodes : numpy array
+            (x, y) coordinates of the mesh nodes.
+        fem_elements : list of lists of int
+            Node numbers of the adjusted elements.
+        fem_properties : list of float
+            Element properties calculated by averaging pixel intensities.
         """
         fem_elements = []
         fem_properties = []
@@ -986,7 +989,11 @@ class QTreeMesh:
 
 def image_preprocess(image_array):
     """
-    A function to make image square and of order 2^n.
+    Pad the image to a square whose side is a power of 2.
+
+    The image is first padded with zero-intensity rows or columns to a square,
+    then padded the same way up to the next power of 2 on each side. The
+    original pixels remain at the top-left of the result.
 
     Parameters
     ----------
