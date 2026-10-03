@@ -76,6 +76,12 @@ class QTree:
         strictly greater than crit; with the default crit = 1, two regions
         whose intensities differ by exactly 1 are not split.
         Default value is 1.
+    max_size : int, optional
+        Maximum cell size in pixels. A cell whose side (dimension) exceeds
+        max_size is split even when its pixels are homogeneous, so uniform
+        regions are not left as one huge cell. None (default) imposes no
+        limit. Cells halve at each split, so the effective cell side is the
+        largest power of 2 not exceeding max_size.
     scale : float, optional
         The ratio between pixels units and real units. For example, when scale is 2,
         each pixel represents a 2*2 ($mm^2$ or $in^2$ or ...) square part of the object.
@@ -142,7 +148,10 @@ class QTree:
         scale=1.0,
         bottom_left_corner=Point((0.0, 0.0)),
         depth=0,
+        max_size=None,
     ):
+        if max_size is not None and max_size < 1:
+            raise ValueError("max_size must be at least 1 (or None for no limit)")
         self.north_west = None  # NorthWest Section Initiated Empty
         self.north_east = None  # NorthEast Section Initiated Empty
         self.south_west = None  # SouthWest Section Initiated Empty
@@ -153,6 +162,7 @@ class QTree:
         self.depth = depth
         self.crit = crit
         self.scale = scale
+        self.max_size = max_size
 
         self.property = np.mean(array)  # To define material properties by Averaging
         self.bottom_left_corner = bottom_left_corner  # BottomLeft Coordinates
@@ -162,7 +172,11 @@ class QTree:
         self.dimension = np.sqrt(array.size)  # To define scale requirement
 
         # SPLITTING
-        if (np.max(array) - np.min(array)) > crit:  # Check Splitting Criteria
+        if (
+            np.max(array) - np.min(array) > crit  # Check Splitting Criteria
+            or self.max_size is not None
+            and self.dimension > self.max_size  # Check Maximum Cell Size
+        ):
             self.sectors()
 
     def sectors(self):
@@ -190,6 +204,7 @@ class QTree:
             self.scale,
             bottom_left_north_west,
             self.depth,
+            self.max_size,
         )
         bottom_left_north_east = self.bottom_left_corner.coord_sum(
             ((size[1] / 2) * self.scale, (size[0] / 2) * self.scale)
@@ -201,6 +216,7 @@ class QTree:
             self.scale,
             bottom_left_north_east,
             self.depth,
+            self.max_size,
         )
         bottom_left_south_west = self.bottom_left_corner
         self.south_west = QTree(
@@ -210,6 +226,7 @@ class QTree:
             self.scale,
             bottom_left_south_west,
             self.depth,
+            self.max_size,
         )
         bottom_left_south_east = self.bottom_left_corner.coord_sum(
             ((size[1] / 2) * self.scale, 0)
@@ -221,6 +238,7 @@ class QTree:
             self.scale,
             bottom_left_south_east,
             self.depth,
+            self.max_size,
         )
 
     @property

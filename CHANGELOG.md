@@ -8,7 +8,11 @@ All notable changes to this project will be documented in this file. The format 
   first-seen order); mesh building on large images is orders of magnitude faster.
 
 ### Added
-- Test suite covering the node-numbering contract (`tests/test_labeling.py`).
+- `QTree` accepts a `max_size` option (pixels): cells larger than this size are
+  split even when their pixels are homogeneous, so uniform regions are no longer
+  left as one huge cell. Replaces the checkerboard-image workaround.
+- Test suite covering the node-numbering contract (`tests/test_labeling.py`) and
+  the `max_size` option (`tests/test_max_size.py`).
 
 ## [0.1.3]
 - Added the method `adjust_mesh_for_FEM` to generate FEM-compatible mesh from the QuadTreeMesh
