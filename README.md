@@ -50,7 +50,6 @@
       <a href="#getting-started">Getting Started</a>
       <ul>
         <li><a href="#installation">Installation</a></li>
-        <li><a href="#testing">Testing</a></li>
       </ul>
     </li>
     <li><a href="#usage">Usage</a>
@@ -104,23 +103,6 @@ This part explains how to install and use this package.
 Install `QTREEMESH` from PyPI via pip.
 ```sh
 pip install qtreemesh
-```
-
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
-
-<!-- TESTING -->
-## Testing
-
-The package ships with a test suite covering the whole code base (100% line coverage):
-```sh
-pytest
-```
-To measure coverage, run:
-```sh
-pytest --cov=qtreemesh --cov-report=term-missing
 ```
 
 
@@ -305,6 +287,7 @@ See the [open issues](https://github.com/Sad-Abd/qtreemesh/issues) for a full li
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
 
 If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
+The test suite covers the whole package — run `pytest` before submitting a pull request.
 Don't forget to give the project a star! Thanks again!
 
 
