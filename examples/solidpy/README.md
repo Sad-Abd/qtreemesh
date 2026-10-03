@@ -1,7 +1,7 @@
 # SolidSpy FEM export example
 
 Prototype for exporting a qtreemesh mesh to
-[SolidSpy](https://github.com/calculixon/solidspy), an open-source finite
+[SolidsPy](https://github.com/AppliedMechanics-EAFIT/SolidsPy), an open-source finite
 element code, and visualizing the analysis results.
 
 `test2.py`:

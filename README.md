@@ -50,6 +50,7 @@
       <a href="#getting-started">Getting Started</a>
       <ul>
         <li><a href="#installation">Installation</a></li>
+        <li><a href="#testing">Testing</a></li>
       </ul>
     </li>
     <li><a href="#usage">Usage</a>
@@ -109,10 +110,27 @@ pip install qtreemesh
 
 
 
+<!-- TESTING -->
+## Testing
+
+The package ships with a test suite covering the whole code base (100% line coverage):
+```sh
+pytest
+```
+To measure coverage, run:
+```sh
+pytest --cov=qtreemesh --cov-report=term-missing
+```
+
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+
+
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-There is a `test.py` file in `examples` folder that demonstrate how different parts of this package work. Here we go through this file line by line:
+There is a `test.py` file in `examples` folder that demonstrate how different parts of this package work. The `examples` folder also contains a `solidpy` folder showing how to export a generated mesh to the open-source finite element code [SolidsPy](https://github.com/AppliedMechanics-EAFIT/SolidsPy). Here we go through `test.py` line by line:
 
 ### 1. Read Image
 
@@ -122,7 +140,7 @@ from PIL import Image # to read image file properly
 from numpy import asarray # for converting image matrix to array
 ```
 
-Then we read the image and convert it to gray-scale. There are three example images in `examples` folder. `4.jpg` is smaller than the two others and need fewer computation efforts.
+Then we read the image and convert it to gray-scale. There are several example images in `examples` folder. `4.jpg` is smaller than the others and needs fewer computation efforts.
 ```python
 im = Image.open("4.jpg").convert('L')
 ```
@@ -138,17 +156,26 @@ imar = image_preprocess(asarray(im))
 
 ### 3. QuadTree Algorithm
 
-The QuadTree decomposition can be performed on `image_array` using a recursive class `QTree` based on given `tolerance`.
+The QuadTree decomposition can be performed on `image_array` using a recursive class `QTree` based on given `crit` (tolerance).
 ```python
 from qtreemesh import QTree
 
-quad = QTree(None, imar, 125) # QTree(None, image_array, tolerance)
+quad = QTree(None, imar, 125) # QTree(None, image_array, crit)
 ```
+A cell splits only when the difference between its maximum and minimum pixel intensities is **strictly greater** than `crit`; with the default `crit = 1`, two regions whose intensities differ by exactly 1 are not split.
 
 `QTree` object may have 4 children `QTree` objects (can be accessed through attributes: `north_west`,
 `north_east`,
 `south_west`,
 `south_east`) and so on. Each `QTree` has an attribute `divided` that determines the existence of children partitions. There are also an property method for counting `count_leaves` and a method for saving tree leaves `save_leaves` (i.e. undivided partitions).
+
+Two further options are available in `QTree`:
+
+- `scale` (default 1.0): the real length of each pixel edge. For example, when `scale = 2`, each pixel represents a 2×2 square part of the object; node coordinates are reported in these real units.
+- `max_size` (default `None`): the maximum cell size in pixels. Cells whose side exceeds `max_size` are split even when their pixels are homogeneous, so a uniform region is not left as one huge cell (useful for analysis accuracy away from interfaces). Cells halve at each split, so the effective cell side is the largest power of 2 not exceeding `max_size`.
+```python
+quad = QTree(None, imar, 125, scale=2.0, max_size=32)
+```
 
 ### 4. Mesh Generation
 Common mesh data structure can be extracted from QuadTree structure using `QTreeMesh` class. After initiating the class, corresponding `elements` and `nodes` can be generated as attributes of the `QTreeMesh` object with the method `create_elements`. The resulted mesh may be illustrated using `draw` method. 
@@ -166,8 +193,10 @@ Each element in `elements` is a `QTreeElement` object that contains many attribu
 |----------|:-------------:|:------:|
 | 4.jpg |  <img src="examples/4.jpg" alt="image 4" width="200px"> | <img src="examples/4_meshed.png" alt="image 4 meshed" width="200px"> |
 | 5.jpg |    <img src="examples/5.jpg" alt="image 5" width="200px">   |   <img src="examples/5_meshed.png" alt="image 5 meshed" width="260px"> |
+| 6.jpg |    <img src="examples/6.jpg" alt="image 6" width="200px">   |   <img src="examples/6_meshed.png" alt="image 6 meshed" width="260px"> |
+| 7.jpg |    <img src="examples/7.jpg" alt="image 7" width="200px">   |   <img src="examples/7_meshed.png" alt="image 7 meshed" width="260px"> |
 
-_For more examples, please refer to the [Documentation](https://example.com)_
+For more examples, please refer to the files in the [`examples`](examples/) folder and to the docstrings of the package classes.
 
 ### 5. Export and Implementation
 
@@ -186,7 +215,9 @@ It is also possible to adjust the elements to handle hanging nodes and generate 
 ```python
 fem_nodes, fem_elements, fem_properties = mesh.adjust_mesh_for_FEM()
 ```
-The default configuration generates FEM elements as triangles. To include both quadrilateral and triangle elements, set `force_triagulation` to `False`.
+The default configuration generates FEM elements as triangles. To include both quadrilateral and triangle elements, set `force_triangulation` to `False`.
+
+A complete working example of this pipeline — exporting a generated mesh as input files for [SolidsPy](https://github.com/AppliedMechanics-EAFIT/SolidsPy), running the analysis, and visualizing the results — is available in the [`examples/solidpy`](examples/solidpy/) folder.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -241,11 +272,14 @@ While this algorithm has many applications in various fields of science (e.g., c
 - [x] Completing the codes documentation
 - [x] Adding details to README file
 - [x] Exporting data as `vtk` format
+- [x] Maximum cell size option (`max_size` in `QTree`)
+- [x] Test suite covering the whole package
 - [ ] Successfully implement in FEM software
   - [x] Handling hanging nodes
-  - [ ] Prepare required data
-  - [ ] Illustrate usage in open-source FEM programs
-- [ ] Prepare required data for SBFEM
+  - [x] Prepare required data
+  - [x] Illustrate usage in open-source FEM programs (see [`examples/solidpy`](examples/solidpy/))
+- [x] Prepare required data for SBFEM (element modes, rotations and scales are provided in `element_type`; the SBFEM implementation itself is developed in the NLSBFEM project)
+- [ ] Expose a pixel → element lookup and exact per-cell material labels
 
 
 See the [open issues](https://github.com/Sad-Abd/qtreemesh/issues) for a full list of proposed features (and known issues).
@@ -270,7 +304,7 @@ Don't forget to give the project a star! Thanks again!
 <!-- LICENSE -->
 ## License
 
-Distributed under the MIT License. See `LICENSE.txt` for more information.
+Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -290,9 +324,9 @@ Project Link: [https://github.com/Sad-Abd/qtreemesh](https://github.com/Sad-Abd/
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
 
-* []()
-* []()
-* []()
+* [Best-README-Template](https://github.com/othneildrew/Best-README-Template) — the template this README is based on
+* [ParaView](https://github.com/Kitware/ParaView) — used to visualize the exported VTK meshes
+* [SolidsPy](https://github.com/AppliedMechanics-EAFIT/SolidsPy) — the open-source FEM code used in the examples
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -309,7 +343,7 @@ Project Link: [https://github.com/Sad-Abd/qtreemesh](https://github.com/Sad-Abd/
 [issues-shield]: https://img.shields.io/github/issues/Sad-Abd/qtreemesh.svg?style=for-the-badge
 [issues-url]: https://github.com/Sad-Abd/qtreemesh/issues
 [license-shield]: https://img.shields.io/github/license/Sad-Abd/qtreemesh.svg?style=for-the-badge
-[license-url]: https://github.com/Sad-Abd/qtreemesh/blob/master/LICENSE.txt
+[license-url]: https://github.com/Sad-Abd/qtreemesh/blob/main/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/seyed-sadjad-abedi-shahri
 [product-screenshot]: images/screenshot.png
