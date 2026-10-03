@@ -699,37 +699,31 @@ class QTreeMesh:
         A function that labels all cells and their corresponding corner
         points and add corner points to mesh nodes.
         """
-        self.nodes = np.array([[+np.inf, -np.inf]])
-        label = 1
+        index = {}
+        coords = []
 
-        for leaf in self.leaves:
+        for label, leaf in enumerate(self.leaves, start=1):
+            bottom_left = leaf.bottom_left_corner
+            top_right = leaf.top_right_corner
+            corners = (
+                (bottom_left.x_coord, bottom_left.y_coord),
+                (top_right.x_coord, bottom_left.y_coord),
+                (top_right.x_coord, top_right.y_coord),
+                (bottom_left.x_coord, top_right.y_coord),
+            )
             leaf.edge_points_numbers = []
             leaf.nodes_coordinate = []
-            leaf.nodes_coordinate.append(np.array(leaf.bottom_left_corner.xy_coord))
-            leaf.nodes_coordinate.append(
-                np.array(
-                    (leaf.top_right_corner.x_coord, leaf.bottom_left_corner.y_coord)
-                )
-            )
-            leaf.nodes_coordinate.append(np.array(leaf.top_right_corner.xy_coord))
-
-            leaf.nodes_coordinate.append(
-                np.array(
-                    (leaf.bottom_left_corner.x_coord, leaf.top_right_corner.y_coord)
-                )
-            )
-            for node in leaf.nodes_coordinate:  # Creating Element node list
-                if any(np.equal(self.nodes, node).all(1)):
-                    leaf.edge_points_numbers.append(
-                        np.where(np.equal(self.nodes, node).all(1) == True)[0][0]
-                    )
-                else:
-                    self.nodes = np.r_[self.nodes, [node]]
-                    leaf.edge_points_numbers.append(self.nodes.shape[0] - 1)
-
+            for corner in corners:
+                leaf.nodes_coordinate.append(np.array(corner))
+                key = (float(corner[0]), float(corner[1]))
+                number = index.get(key)
+                if number is None:
+                    coords.append(key)
+                    number = len(coords)
+                    index[key] = number
+                leaf.edge_points_numbers.append(number)
             leaf.cell_number = label
-            label += 1
-        self.nodes = self.nodes[1:, :]
+        self.nodes = np.array(coords, dtype=float).reshape(-1, 2)
 
     def refactor_edge(self):
         """
