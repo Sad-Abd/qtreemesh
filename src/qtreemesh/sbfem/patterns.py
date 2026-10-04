@@ -71,10 +71,27 @@ def isotropic_tangent(E, nu, formulation="plane_strain"):
     -------
     numpy array
         4x4 symmetric tangent A with sigma = A @ [eps_xx, eps_yy, eps_xy, eps_xy].
+
+    Raises
+    ------
+    ValueError
+        If E is not positive and finite, if nu lies outside (-1, 0.5) for
+        plane strain or (-1, 1) for plane stress, or if the formulation is
+        unknown.
     """
+    if not np.isfinite(E) or E <= 0.0:
+        raise ValueError(f"Young's modulus must be positive and finite, got {E}")
     if formulation == "plane_strain":
+        if not -1.0 < nu < 0.5:
+            raise ValueError(
+                f"Poisson's ratio must lie in (-1, 0.5) for plane strain, got {nu}"
+            )
         lmbda = E * nu / ((1.0 + nu) * (1.0 - 2.0 * nu))
     elif formulation == "plane_stress":
+        if not -1.0 < nu < 1.0:
+            raise ValueError(
+                f"Poisson's ratio must lie in (-1, 1) for plane stress, got {nu}"
+            )
         lmbda = E * nu / (1.0 - nu**2)
     else:
         raise ValueError(f"unknown formulation {formulation!r}")

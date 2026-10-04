@@ -83,8 +83,18 @@ def condense(E0, E1, E2):
     -------
     SElementSolution
         Condensed stiffness K and modal data (d, v).
+
+    Raises
+    ------
+    ValueError
+        If the matrices are not square and of equal size.
+    numpy.linalg.LinAlgError
+        If the reduced Hamiltonian does not split into two half-plane
+        spectra of equal size.
     """
     E0 = np.asarray(E0, dtype=float)
+    E1 = np.asarray(E1, dtype=float)
+    E2 = np.asarray(E2, dtype=float)
     nd = E0.shape[0]
     n = nd // 2
     if E1.shape != (nd, nd) or E2.shape != (nd, nd):
@@ -95,7 +105,7 @@ def condense(E0, E1, E2):
     T[0::2, 0] = 1.0
     T[1::2, 1] = 1.0
     T /= np.sqrt(n)
-    # orthonormal completion U (first two columns of the QR reproduce T)
+    # orthonormal completion U (the first two columns of Q span T)
     Q, _ = np.linalg.qr(np.hstack([T, np.eye(nd)]))
     U = Q[:, 2:]
     m = nd - 2
@@ -115,7 +125,12 @@ def condense(E0, E1, E2):
     idx = np.concatenate([np.arange(2, nd), nd + 2 + np.arange(m)])
     Z_red = Z[np.ix_(idx, idx)]
 
-    S_full, V_red, _sdim = sla.schur(Z_red, output="real", sort="rhp")
+    S_full, V_red, sdim = sla.schur(Z_red, output="real", sort="rhp")
+    if sdim != m:
+        raise np.linalg.LinAlgError(
+            f"the reduced Hamiltonian has {sdim} right-half-plane eigenvalues, "
+            f"expected {m}"
+        )
     S_pp = S_full[:m, :m]
     W = V_red[:, :m]
     V_u = W[:m, :]
@@ -123,6 +138,7 @@ def condense(E0, E1, E2):
 
     K_r = np.linalg.solve(V_u.T, V_q.T).T
     K = U @ K_r @ U.T
+    K = 0.5 * (K + K.T)  # symmetric in exact arithmetic
 
     # modal data: translation modes (xi-independent) + lifted reduced modes
     a = np.linalg.solve(S_pp.T, (T.T @ (A_z @ U @ V_u + G_z @ U @ V_q)).T).T

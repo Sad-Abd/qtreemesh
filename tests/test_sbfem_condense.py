@@ -122,3 +122,32 @@ def test_condense_rejects_mismatched_sizes():
     E0, E1, E2 = element_matrices(1, 0.3)
     with pytest.raises(ValueError):
         condense(E0, E1[:, :-1], E2)
+
+
+@pytest.mark.parametrize("mode", CANONICAL_MODES)
+def test_condensed_stiffness_is_exactly_symmetric(mode):
+    E0, E1, E2 = element_matrices(mode, 0.4999)
+    K = condense(E0, E1, E2).K
+    assert np.array_equal(K, K.T)
+
+
+def test_condense_accepts_nested_sequences():
+    E0, E1, E2 = element_matrices(1, 0.3)
+    expected = condense(E0, E1, E2).K
+    result = condense(E0, E1.tolist(), E2.tolist()).K
+    assert np.abs(result - expected).max() == 0.0
+
+
+def test_condense_rejects_an_unbalanced_spectrum(monkeypatch):
+    import scipy.linalg as sla
+
+    real_schur = sla.schur
+
+    def unbalanced(*args, **kwargs):
+        S, V, sdim = real_schur(*args, **kwargs)
+        return S, V, sdim - 1
+
+    monkeypatch.setattr(sla, "schur", unbalanced)
+    E0, E1, E2 = element_matrices(1, 0.3)
+    with pytest.raises(np.linalg.LinAlgError):
+        condense(E0, E1, E2)

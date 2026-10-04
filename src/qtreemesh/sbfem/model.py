@@ -31,6 +31,12 @@ from .patterns import (
 __all__ = ["SBFEMModel"]
 
 
+def _check_modulus(value):
+    """Raise ValueError unless value is a positive, finite Young's modulus."""
+    if not np.isfinite(value) or value <= 0.0:
+        raise ValueError(f"Young's modulus must be positive and finite, got {value}")
+
+
 class SBFEMModel:
     """
     Linear static SBFEM model of a quadtree mesh.
@@ -55,6 +61,14 @@ class SBFEMModel:
     ----------
     ndof : int
         Number of degrees of freedom (twice the number of mesh nodes).
+
+    Raises
+    ------
+    ValueError
+        If the mesh has no elements, a modulus is not positive and finite,
+        or nu or the formulation is invalid (see `isotropic_tangent`).
+    KeyError
+        If a cell label of the mesh has no entry in `moduli`.
     """
 
     def __init__(self, mesh, moduli, nu, formulation="plane_strain"):
@@ -70,6 +84,13 @@ class SBFEMModel:
 
         if isinstance(moduli, dict):
             labels = mesh.element_labels()
+            missing = sorted(set(labels.tolist()) - set(moduli))
+            if missing:
+                raise KeyError(f"no modulus given for cell label(s) {missing}")
+            for value in moduli.values():
+                _check_modulus(value)
+        else:
+            _check_modulus(moduli)
         self._elements = []
         for number, element in enumerate(mesh.elements, start=1):
             mode, rotation, _size = element.element_type
@@ -155,6 +176,14 @@ class SBFEMModel:
             (ndof,) force vector.
         """
         tractions = np.asarray(tractions, dtype=float)
+        edges = [(int(a), int(b)) for a, b in edges]
+        if tractions.shape != (len(edges), 2):
+            raise ValueError(
+                f"tractions must have shape ({len(edges)}, 2), got {tractions.shape}"
+            )
+        nnodes = self.ndof // 2
+        if any(not (1 <= n <= nnodes) for edge in edges for n in edge):
+            raise ValueError(f"edge node numbers must lie in 1..{nnodes}")
         force = np.zeros(self.ndof)
         for (n1, n2), t in zip(edges, tractions):
             length = np.linalg.norm(self.mesh.nodes[n2 - 1] - self.mesh.nodes[n1 - 1])
@@ -169,8 +198,8 @@ class SBFEMModel:
         Parameters
         ----------
         dirichlet : numpy array
-            (m, 3) rows of [node, direction, value]; direction 1 = x,
-            2 = y. May be empty.
+            (m, 3) rows of [node, direction, value]; node is a 1-based mesh
+            node number, direction 1 = x or 2 = y. May be empty.
         force : numpy array, optional
             (ndof,) external nodal force vector.
 
@@ -179,22 +208,74 @@ class SBFEMModel:
         u, reactions : numpy array
             (ndof,) nodal displacements and (ndof,) support reaction forces
             (the residual K u - force on the constrained degrees of freedom).
+
+        Raises
+        ------
+        ValueError
+            If a constraint row or the force vector is malformed, or if the
+            constraints leave a rigid-body motion free while the load is not
+            zero (the system is then singular).
         """
         K = self.stiffness()
-        u = np.zeros(self.ndof)
+        nnodes = self.ndof // 2
         dirichlet = np.asarray(dirichlet, dtype=float).reshape(-1, 3)
+        nodes, directions, values = dirichlet.T
+        if not (np.all(nodes == np.round(nodes)) and np.all((nodes >= 1) & (nodes <= nnodes))):
+            raise ValueError(f"constrained node numbers must be integers in 1..{nnodes}")
+        if not np.all((directions == 1) | (directions == 2)):
+            raise ValueError("constraint directions must be 1 (x) or 2 (y)")
+        if not np.all(np.isfinite(values)):
+            raise ValueError("constraint values must be finite")
         if force is None:
             force = np.zeros(self.ndof)
         force = np.asarray(force, dtype=float)
-        if dirichlet.shape[0]:
-            constrained = ((dirichlet[:, 0].astype(int) - 1) * 2 + (dirichlet[:, 1].astype(int) - 1)).astype(int)
-            u[constrained] = dirichlet[:, 2]
-        else:
-            constrained = np.array([], dtype=int)
+        if force.shape != (self.ndof,) or not np.all(np.isfinite(force)):
+            raise ValueError(f"force must be a finite vector of length {self.ndof}")
+
+        u = np.zeros(self.ndof)
+        constrained = ((nodes.astype(int) - 1) * 2 + (directions.astype(int) - 1)).astype(int)
+        u[constrained] = values
         free = np.setdiff1d(np.arange(self.ndof), constrained)
         f_eff = force - K[:, constrained] @ u[constrained]
-        u[free] = spla.spsolve(K[free][:, free], f_eff[free])
+        rhs = f_eff[free]
+        if free.size and not self._rigid_motions_constrained(nodes, directions):
+            # the rigid-body motions are null vectors of the free block, so a
+            # nonzero load has no solution; a zero load is solved by zero
+            if np.any(rhs != 0.0):
+                raise ValueError(
+                    "the constraints leave a rigid-body motion free; "
+                    "constrain x and y translations and the rotation"
+                )
+        elif free.size:
+            u[free] = spla.spsolve(K[free][:, free], rhs)
+            if not np.all(np.isfinite(u)):
+                raise ValueError("the stiffness matrix of the free degrees of freedom is singular")
         return u, K @ u - force
+
+    def _rigid_motions_constrained(self, nodes, directions):
+        """
+        Whether the constraints remove both rigid translations and the rotation.
+
+        The translations are fixed when some x and some y degree of freedom is
+        constrained. A rotation about a centre (x0, y0) is fixed unless every
+        constrained x degree of freedom lies on the line y = y0 and every
+        constrained y degree of freedom on the line x = x0.
+        """
+        coordinates = self.mesh.nodes[nodes.astype(int) - 1]
+        x_fixed = directions == 1
+        y_fixed = directions == 2
+        if not (x_fixed.any() and y_fixed.any()):
+            return False
+        rows = np.unique(coordinates[x_fixed, 1]).size
+        columns = np.unique(coordinates[y_fixed, 0]).size
+        return rows > 1 or columns > 1
+
+    def _check_displacements(self, u):
+        """The displacement vector as a float array of length ndof."""
+        u = np.asarray(u, dtype=float)
+        if u.shape != (self.ndof,):
+            raise ValueError(f"u must have shape ({self.ndof},), got {u.shape}")
+        return u
 
     def _pullback(self, element, u):
         """Canonical-frame nodal displacements of one element."""
@@ -243,6 +324,7 @@ class SBFEMModel:
             (m, 2) midpoint coordinates and (m, 3) stress components
             [sigma_xx, sigma_yy, sigma_xy], one row per element edge.
         """
+        u = self._check_displacements(u)
         points = []
         stress = []
         for element in self._elements:
@@ -299,12 +381,18 @@ class SBFEMModel:
         """
         if not 0.0 < xi <= 1.0:
             raise ValueError("xi must lie in (0, 1]")
-        element = self._elements[element_number - 1]
+        if not -1.0 <= eta <= 1.0:
+            raise ValueError("eta must lie in [-1, 1]")
+        if int(element_number) != element_number or not 1 <= element_number <= len(self._elements):
+            raise ValueError(f"element_number must be an integer in 1..{len(self._elements)}")
+        u = self._check_displacements(u)
+        element = self._elements[int(element_number) - 1]
         mode = element["mode"]
         xy_c = canonical_polygon(mode)
         n = xy_c.shape[0]
-        if not 0 <= edge < n:
-            raise ValueError(f"edge must be in 0..{n - 1}")
+        if int(edge) != edge or not 0 <= edge < n:
+            raise ValueError(f"edge must be an integer in 0..{n - 1}")
+        edge = int(edge)
 
         # edge `edge` of the element's node list is edge (edge - shift) % n
         # of the basic pattern

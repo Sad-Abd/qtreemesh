@@ -398,3 +398,161 @@ def test_uniaxial_traction_patch_recovers_the_applied_stress():
     _, stress = model.boundary_stress(u)
     assert np.abs(stress[:, 1] - t).max() < 1e-10
     assert np.abs(stress[:, 0]).max() < 1e-10
+
+
+# --- input validation and singular systems ---------------------------------
+
+
+@pytest.mark.parametrize("nu", [0.5, 0.7, -1.0, -1.5, float("nan")])
+def test_model_rejects_invalid_poisson_ratio(nu):
+    with pytest.raises(ValueError):
+        SBFEMModel(two_phase_mesh(), moduli=1.0, nu=nu)
+
+
+def test_model_rejects_unknown_formulation():
+    with pytest.raises(ValueError):
+        SBFEMModel(two_phase_mesh(), moduli=1.0, nu=0.3, formulation="plane")
+
+
+@pytest.mark.parametrize("modulus", [0.0, -1.0, float("inf"), float("nan")])
+def test_model_rejects_invalid_modulus(modulus):
+    mesh = two_phase_mesh()
+    with pytest.raises(ValueError):
+        SBFEMModel(mesh, moduli=modulus, nu=0.3)
+    with pytest.raises(ValueError):
+        SBFEMModel(mesh, moduli={0: 1.0, 10: modulus}, nu=0.3)
+
+
+def test_model_reports_missing_labels():
+    with pytest.raises(KeyError, match="10"):
+        SBFEMModel(two_phase_mesh(), moduli={0: 1.0}, nu=0.3)
+
+
+def corner_pin_constraints(mesh, model):
+    """x and y of one corner node and y of a second node on the same edge:
+    removes both translations and the rotation."""
+    bottom = [n for n in border_nodes(model) if mesh.nodes[n - 1, 1] == 0.0]
+    bottom.sort(key=lambda n: mesh.nodes[n - 1, 0])
+    return [[bottom[0], 1, 0.0], [bottom[0], 2, 0.0], [bottom[-1], 2, 0.0]]
+
+
+def test_solve_with_a_statically_determinate_support():
+    mesh = two_phase_mesh()
+    model = SBFEMModel(mesh, moduli=1.0, nu=0.3)
+    top = mesh.nodes[:, 1].max()
+    loaded = [
+        (a, b)
+        for (a, b) in model.boundary_edges()
+        if mesh.nodes[a - 1, 1] == top and mesh.nodes[b - 1, 1] == top
+    ]
+    force = model.traction_forces(loaded, np.tile([0.0, -1.0], (len(loaded), 1)))
+    u, reactions = model.solve(np.array(corner_pin_constraints(mesh, model)), force=force)
+    assert np.isfinite(u).all()
+    assert reactions[1::2].sum() == pytest.approx(-force[1::2].sum(), rel=1e-9)
+    assert reactions[0::2].sum() == pytest.approx(0.0, abs=1e-9)
+
+
+@pytest.mark.parametrize(
+    "constraints",
+    [
+        [],
+        [[1, 1, 0.0]],
+        [[1, 1, 0.0], [2, 1, 0.0]],
+        [[1, 1, 0.0], [1, 2, 0.0]],
+        [[1, 1, 0.0], [2, 2, 0.0]],
+    ],
+)
+def test_solve_rejects_a_load_with_a_free_rigid_motion(constraints):
+    mesh = two_phase_mesh()
+    model = SBFEMModel(mesh, moduli=1.0, nu=0.3)
+    force = np.zeros(model.ndof)
+    force[-1] = 1.0  # y load on the last node, which no constraint touches
+    with pytest.raises(ValueError, match="rigid-body"):
+        model.solve(np.array(constraints, dtype=float).reshape(-1, 3), force=force)
+
+
+def test_solve_with_a_free_rigid_motion_and_no_load_gives_zero():
+    mesh = two_phase_mesh()
+    model = SBFEMModel(mesh, moduli=1.0, nu=0.3)
+    u, reactions = model.solve(np.array([[1, 1, 0.0]]))
+    assert np.abs(u).max() == 0.0
+    assert np.abs(reactions).max() == 0.0
+
+
+def test_solve_rejects_malformed_constraints_and_forces():
+    mesh = two_phase_mesh()
+    model = SBFEMModel(mesh, moduli=1.0, nu=0.3)
+    nnodes = mesh.nodes.shape[0]
+    for row in (
+        [1, 3, 0.0],
+        [1, 0, 0.0],
+        [0, 1, 0.0],
+        [nnodes + 1, 1, 0.0],
+        [1.5, 1, 0.0],
+        [1, 1, float("nan")],
+    ):
+        with pytest.raises(ValueError):
+            model.solve(np.array([row]))
+    with pytest.raises(ValueError):
+        model.solve(np.zeros((0, 3)), force=np.zeros(model.ndof + 1))
+    with pytest.raises(ValueError):
+        model.solve(np.zeros((0, 3)), force=np.full(model.ndof, np.nan))
+
+
+def test_solve_with_every_degree_of_freedom_constrained():
+    mesh = two_phase_mesh()
+    model = SBFEMModel(mesh, moduli=1.0, nu=0.3)
+    nnodes = mesh.nodes.shape[0]
+    rows = [[n, c, 0.001 * n] for n in range(1, nnodes + 1) for c in (1, 2)]
+    u, _ = model.solve(np.array(rows))
+    assert u[0::2] == pytest.approx(0.001 * np.arange(1, nnodes + 1))
+
+
+def test_traction_forces_validates_its_arguments():
+    mesh = two_phase_mesh()
+    model = SBFEMModel(mesh, moduli=1.0, nu=0.3)
+    edges = model.boundary_edges()[:3]
+    with pytest.raises(ValueError):
+        model.traction_forces(edges, np.zeros((2, 2)))
+    with pytest.raises(ValueError):
+        model.traction_forces(edges, np.zeros((3, 3)))
+    with pytest.raises(ValueError):
+        model.traction_forces([(0, 1)], np.zeros((1, 2)))
+    with pytest.raises(ValueError):
+        model.traction_forces([(1, mesh.nodes.shape[0] + 1)], np.zeros((1, 2)))
+
+
+def test_recovery_validates_its_arguments():
+    mesh = two_phase_mesh()
+    model = SBFEMModel(mesh, moduli=1.0, nu=0.3)
+    u = np.zeros(model.ndof)
+    with pytest.raises(ValueError):
+        model.boundary_stress(u[:-1])
+    with pytest.raises(ValueError):
+        model.field(1, 0, 0.0, 1.0, u[:-1])
+    with pytest.raises(ValueError):
+        model.field(0, 0, 0.0, 1.0, u)
+    with pytest.raises(ValueError):
+        model.field(len(mesh.elements) + 1, 0, 0.0, 1.0, u)
+    with pytest.raises(ValueError):
+        model.field(1.5, 0, 0.0, 1.0, u)
+    with pytest.raises(ValueError):
+        model.field(1, 0.5, 0.0, 1.0, u)
+    with pytest.raises(ValueError):
+        model.field(1, 0, 1.5, 1.0, u)
+    with pytest.raises(ValueError):
+        model.field(1, 0, float("nan"), 1.0, u)
+    with pytest.raises(ValueError):
+        model.field(1, 0, 0.0, float("nan"), u)
+
+
+def test_solve_rejects_a_non_finite_solution(monkeypatch):
+    import scipy.sparse.linalg as spla
+
+    mesh = two_phase_mesh()
+    model = SBFEMModel(mesh, moduli=1.0, nu=0.3)
+    monkeypatch.setattr(spla, "spsolve", lambda A, b: np.full(b.shape, np.nan))
+    force = np.zeros(model.ndof)
+    force[-1] = 1.0
+    with pytest.raises(ValueError, match="singular"):
+        model.solve(np.array(corner_pin_constraints(mesh, model)), force=force)

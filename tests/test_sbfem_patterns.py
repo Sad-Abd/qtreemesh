@@ -160,3 +160,29 @@ def test_transform_is_orthogonal():
 def test_unknown_mode_in_transform_raises():
     with pytest.raises(ValueError):
         transform(9, 0)
+
+
+@pytest.mark.parametrize(
+    "E,nu,formulation",
+    [
+        (1.0, 0.5, "plane_strain"),
+        (1.0, -1.0, "plane_strain"),
+        (1.0, 0.7, "plane_strain"),
+        (1.0, 1.0, "plane_stress"),
+        (1.0, -1.5, "plane_stress"),
+        (0.0, 0.3, "plane_strain"),
+        (-2.0, 0.3, "plane_stress"),
+        (np.inf, 0.3, "plane_strain"),
+        (np.nan, 0.3, "plane_strain"),
+        (1.0, np.nan, "plane_strain"),
+    ],
+)
+def test_isotropic_tangent_rejects_invalid_parameters(E, nu, formulation):
+    with pytest.raises(ValueError):
+        isotropic_tangent(E, nu, formulation)
+
+
+def test_isotropic_tangent_accepts_the_open_poisson_range():
+    isotropic_tangent(1.0, -0.99, "plane_strain")
+    isotropic_tangent(1.0, 0.4999999, "plane_strain")
+    isotropic_tangent(1.0, 0.99, "plane_stress")
