@@ -170,6 +170,10 @@ class QTree:
             raise ValueError(
                 "the split criterion is not used in label_mode; leave crit at 1"
             )
+        if np.asarray(array).ndim != 2:
+            raise ValueError(
+                f"the image array must be 2D, got {np.asarray(array).ndim} dimensions"
+            )
         self.north_west = None  # NorthWest Section Initiated Empty
         self.north_east = None  # NorthEast Section Initiated Empty
         self.south_west = None  # SouthWest Section Initiated Empty
@@ -210,7 +214,6 @@ class QTree:
 
         """
         self.divided = True
-        self.depth += 1
         size = self.array.shape
         bottom_left_north_west = self.bottom_left_corner.coord_sum(
             (0, (size[0] / 2) * self.scale)
@@ -221,7 +224,7 @@ class QTree:
             self.crit,
             self.scale,
             bottom_left_north_west,
-            self.depth,
+            self.depth + 1,
             self.max_size,
             self.label_mode,
         )
@@ -234,7 +237,7 @@ class QTree:
             self.crit,
             self.scale,
             bottom_left_north_east,
-            self.depth,
+            self.depth + 1,
             self.max_size,
             self.label_mode,
         )
@@ -245,7 +248,7 @@ class QTree:
             self.crit,
             self.scale,
             bottom_left_south_west,
-            self.depth,
+            self.depth + 1,
             self.max_size,
             self.label_mode,
         )
@@ -258,7 +261,7 @@ class QTree:
             self.crit,
             self.scale,
             bottom_left_south_east,
-            self.depth,
+            self.depth + 1,
             self.max_size,
             self.label_mode,
         )
@@ -845,6 +848,12 @@ class QTreeMesh:
         A function that consider edge points, add them to
         cells attributes, and detect cell modes based on the
         presence and location of edge points
+
+        Raises
+        ------
+        ValueError
+            If the quadtree is not balanced for a 2:1 ratio, since the
+            hanging nodes cannot be located then.
         """
 
         def top_right_finder(edge_nums):
@@ -861,6 +870,11 @@ class QTreeMesh:
             newedge.append(leaf.edge_points_numbers[0])
             if leaf.south_neighbor() is not None:
                 if leaf.south_neighbor().divided:
+                    if leaf.south_neighbor().north_west.divided:
+                        raise ValueError(
+                            "the quadtree is not balanced for a 2:1 ratio; "
+                            "build QTreeMesh with balancing=True"
+                        )
                     newedge.append(
                         top_right_finder(
                             leaf.south_neighbor().north_west.edge_points_numbers
@@ -875,6 +889,11 @@ class QTreeMesh:
             newedge.append(leaf.edge_points_numbers[1])
             if leaf.east_neighbor() is not None:
                 if leaf.east_neighbor().divided:
+                    if leaf.east_neighbor().north_west.divided:
+                        raise ValueError(
+                            "the quadtree is not balanced for a 2:1 ratio; "
+                            "build QTreeMesh with balancing=True"
+                        )
                     newedge.append(
                         leaf.east_neighbor().north_west.edge_points_numbers[0]
                     )
@@ -887,6 +906,11 @@ class QTreeMesh:
             newedge.append(leaf.edge_points_numbers[2])
             if leaf.north_neighbor() is not None:
                 if leaf.north_neighbor().divided:
+                    if leaf.north_neighbor().south_east.divided:
+                        raise ValueError(
+                            "the quadtree is not balanced for a 2:1 ratio; "
+                            "build QTreeMesh with balancing=True"
+                        )
                     newedge.append(
                         leaf.north_neighbor().south_east.edge_points_numbers[0]
                     )
@@ -899,6 +923,11 @@ class QTreeMesh:
             newedge.append(leaf.edge_points_numbers[3])
             if leaf.west_neighbor() is not None:
                 if leaf.west_neighbor().divided:
+                    if leaf.west_neighbor().south_east.divided:
+                        raise ValueError(
+                            "the quadtree is not balanced for a 2:1 ratio; "
+                            "build QTreeMesh with balancing=True"
+                        )
                     newedge.append(
                         top_right_finder(
                             leaf.west_neighbor().south_east.edge_points_numbers
@@ -1323,7 +1352,18 @@ def image_preprocess(image_array):
     -------
     image_array : numpy array
         The modified array of the image.
+
+    Raises
+    ------
+    ValueError
+        If the image array is not 2D (e.g. an RGB image with a channel
+        axis; convert it to grayscale first).
     """
+    if np.asarray(image_array).ndim != 2:
+        raise ValueError(
+            f"the image array must be 2D, got {np.asarray(image_array).ndim} "
+            "dimensions"
+        )
 
     if image_array.shape[0] > image_array.shape[1]:
         diff = image_array.shape[0] - image_array.shape[1]

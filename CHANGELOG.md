@@ -22,6 +22,10 @@ All notable changes to this project will be documented in this file. The format 
 - `label_mode` for `QTree` and `QTreeMesh.from_image`: mesh label maps by
   splitting every cell until it holds a single label, independent of the
   numeric distance between labels; every cell is then label-homogeneous.
+- Input validation: `image_preprocess` and `QTree` reject non-2D arrays;
+  `refactor_edge` reports a clear error when the quadtree is not balanced
+  for a 2:1 ratio (previously an `AttributeError`); node `depth` now keeps
+  its documented value on internal nodes after splitting.
 - `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
   analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
   the condensed solutions of the six basic cell patterns, applies Dirichlet and
