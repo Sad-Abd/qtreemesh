@@ -87,6 +87,12 @@ class QTree:
         regions are not left as one huge cell. None (default) imposes no
         limit. Cells halve at each split, so the effective cell side is the
         largest power of 2 not exceeding max_size.
+    label_mode : bool, optional
+        Treat the array as a label map instead of an intensity image: a
+        cell splits whenever it contains more than one distinct label,
+        regardless of the numeric distance between labels. `crit` is not
+        used and must stay at its default. Every cell of the resulting
+        tree is label-homogeneous. Default False.
     scale : float, optional
         The ratio between pixels units and real units. For example, when scale is 2,
         each pixel represents a 2*2 ($mm^2$ or $in^2$ or ...) square part of the object.
@@ -156,9 +162,14 @@ class QTree:
         bottom_left_corner=Point((0.0, 0.0)),
         depth=0,
         max_size=None,
+        label_mode=False,
     ):
         if max_size is not None and max_size < 1:
             raise ValueError("max_size must be at least 1 (or None for no limit)")
+        if label_mode and crit != 1:
+            raise ValueError(
+                "the split criterion is not used in label_mode; leave crit at 1"
+            )
         self.north_west = None  # NorthWest Section Initiated Empty
         self.north_east = None  # NorthEast Section Initiated Empty
         self.south_west = None  # SouthWest Section Initiated Empty
@@ -170,6 +181,7 @@ class QTree:
         self.crit = crit
         self.scale = scale
         self.max_size = max_size
+        self.label_mode = label_mode
 
         self.property = np.mean(array)  # To define material properties by Averaging
         self.bottom_left_corner = bottom_left_corner  # BottomLeft Coordinates
@@ -179,10 +191,12 @@ class QTree:
         self.dimension = np.sqrt(array.size)  # To define scale requirement
 
         # SPLITTING
-        if (
-            np.max(array) - np.min(array) > crit  # Check Splitting Criteria
-            or self.max_size is not None
-            and self.dimension > self.max_size  # Check Maximum Cell Size
+        if label_mode:
+            homogeneous = np.max(array) == np.min(array)
+        else:
+            homogeneous = np.max(array) - np.min(array) <= crit
+        if not homogeneous or (
+            self.max_size is not None and self.dimension > self.max_size
         ):
             self.sectors()
 
@@ -209,6 +223,7 @@ class QTree:
             bottom_left_north_west,
             self.depth,
             self.max_size,
+            self.label_mode,
         )
         bottom_left_north_east = self.bottom_left_corner.coord_sum(
             ((size[1] / 2) * self.scale, (size[0] / 2) * self.scale)
@@ -221,6 +236,7 @@ class QTree:
             bottom_left_north_east,
             self.depth,
             self.max_size,
+            self.label_mode,
         )
         bottom_left_south_west = self.bottom_left_corner
         self.south_west = QTree(
@@ -231,6 +247,7 @@ class QTree:
             bottom_left_south_west,
             self.depth,
             self.max_size,
+            self.label_mode,
         )
         bottom_left_south_east = self.bottom_left_corner.coord_sum(
             ((size[1] / 2) * self.scale, 0)
@@ -243,6 +260,7 @@ class QTree:
             bottom_left_south_east,
             self.depth,
             self.max_size,
+            self.label_mode,
         )
 
     @property
@@ -716,7 +734,13 @@ class QTreeMesh:
 
     @classmethod
     def from_image(
-        cls, image, crit=1, scale=1.0, max_size=None, balancing=True
+        cls,
+        image,
+        crit=1,
+        scale=1.0,
+        max_size=None,
+        balancing=True,
+        label_mode=False,
     ):
         """
         Build a mesh from an image array in one step.
@@ -724,12 +748,14 @@ class QTreeMesh:
         The image is padded with `image_preprocess` to a square whose side is
         a power of 2, a quadtree is grown on the padded image, and the mesh
         elements are generated. Use `trim_padding` to drop the elements of
-        the padded region.
+        the padded region. For label maps pass `label_mode=True` so that
+        every cell is split until it holds a single label.
 
         Parameters
         ----------
         image : numpy array
-            2D array of pixel intensities.
+            2D array of pixel intensities (or labels when `label_mode` is
+            True).
         crit : int, optional
             Splitting criterion, as in `QTree`. Default 1.
         scale : float, optional
@@ -739,6 +765,8 @@ class QTreeMesh:
             Maximum cell size in pixels, as in `QTree`. Default None.
         balancing : bool, optional
             Whether to balance the quad-tree for a 2:1 ratio. Default True.
+        label_mode : bool, optional
+            Treat the array as a label map, as in `QTree`. Default False.
 
         Returns
         -------
@@ -751,6 +779,7 @@ class QTreeMesh:
             crit,
             scale=scale,
             max_size=max_size,
+            label_mode=label_mode,
         )
         mesh = cls(quad, balancing=balancing)
         mesh.create_elements()

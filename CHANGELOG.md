@@ -19,6 +19,9 @@ All notable changes to this project will be documented in this file. The format 
   artist instead of one per element), saves the figure before showing it,
   accepts `show=False` and returns the figure; fill colors are clipped to a
   valid grayscale range instead of failing on intensities above 255.
+- `label_mode` for `QTree` and `QTreeMesh.from_image`: mesh label maps by
+  splitting every cell until it holds a single label, independent of the
+  numeric distance between labels; every cell is then label-homogeneous.
 - `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
   analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
   the condensed solutions of the six basic cell patterns, applies Dirichlet and

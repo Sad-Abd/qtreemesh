@@ -153,6 +153,11 @@ The preprocessing, quadtree and mesh-generation steps can be done in one call:
 mesh = QTreeMesh.from_image(asarray(im), crit=125)
 ```
 
+For label maps (region indices rather than intensities) pass `label_mode=True`; every cell is then split until it holds exactly one label, and `element_labels()` is guaranteed to succeed:
+```python
+mesh = QTreeMesh.from_image(labels, label_mode=True)
+```
+
 `QTree` object may have 4 children `QTree` objects (can be accessed through attributes: `north_west`,
 `north_east`,
 `south_west`,
