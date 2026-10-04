@@ -242,9 +242,21 @@ provides:
 - `solve(dirichlet, force=None)` — the static solution for nodal Dirichlet
   constraints `[node, direction, value]` (direction 1 = x, 2 = y), returning
   the displacement vector and the support reactions;
-- `boundary_stress(u)` — the stress at the midpoint of every element edge;
+- `boundary_stress(u)` — the stress `[sigma_xx, sigma_yy, sigma_xy]` at the
+  midpoint of every element edge, with the points returned alongside; rows
+  follow the elements and, within an element, its edges;
 - `field(element, edge, eta, xi, u)` — displacement and stress at an interior
   point of one element in its scaled boundary coordinates.
+
+Stresses include the Young's modulus of their cell. In `field`, `edge` counts
+the edges of the element's node list (edge `i` runs from node `i` to node
+`i + 1`), `eta` in [-1, 1] runs along that edge and `xi` in (0, 1] is the
+radial coordinate, from the scaling centre (0) to the element boundary (1).
+
+`nu` must lie in (-1, 0.5) for plane strain and in (-1, 1) for plane stress,
+and every modulus must be positive and finite. `solve` needs constraints that
+remove both rigid translations and the rotation; a nonzero load with a free
+rigid-body motion raises a `ValueError`.
 
 A complete compression example:
 
