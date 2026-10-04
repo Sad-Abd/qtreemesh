@@ -559,6 +559,15 @@ class QTreeElement:
     element_property : float
         Element indicator of material properties calculated by averaging
         the pixels intensities.
+    corner_numbers : list(int)
+        Numbers of the four corner nodes, set by `QTreeMesh.create_elements`.
+        The order is counter-clockwise starting from the south-west corner;
+        unlike `nodes_numbers` it never contains hanging nodes.
+    hanging_nodes : list(tuple (int, int, int))
+        One entry per hanging node on the element edges:
+        (hanging node, first edge corner, second edge corner), set by
+        `QTreeMesh.create_elements`. Empty for elements without hanging
+        nodes.
 
 
 
@@ -744,6 +753,8 @@ class QTreeMesh:
         Export mesh as unstructured grid in vtk file.
     adjust_mesh_for_FEM()
         Adjust the quadtree mesh for Finite Element Method (FEM) simulations.
+    constrained_quads()
+        Mesh of quadrilateral elements with hanging nodes as constraints.
     trim_padding()
         Remove elements that lie entirely in the padded region of the image.
     boundary_edges()
@@ -840,11 +851,12 @@ class QTreeMesh:
             node_coordinate = [self.nodes[n - 1, :] for n in node_number]
             element_type = leaf.cell_type
             element_property = leaf.property
-            self.elements.append(
-                QTreeElement(
-                    label, node_number, node_coordinate, element_type, element_property
-                )
+            element = QTreeElement(
+                label, node_number, node_coordinate, element_type, element_property
             )
+            element.corner_numbers = leaf.corner_numbers
+            element.hanging_nodes = leaf.hanging_nodes
+            self.elements.append(element)
 
     def labeling(self):
         """
@@ -902,6 +914,8 @@ class QTreeMesh:
         for leaf in self.leaves:
             newedge = list()
             mode = list()
+            corners = list(leaf.edge_points_numbers)
+            hanging = list()
 
             newedge.append(leaf.edge_points_numbers[0])
             if leaf.south_neighbor() is not None:
@@ -911,11 +925,11 @@ class QTreeMesh:
                             "the quadtree is not balanced for a 2:1 ratio; "
                             "build QTreeMesh with balancing=True"
                         )
-                    newedge.append(
-                        top_right_finder(
-                            leaf.south_neighbor().north_west.edge_points_numbers
-                        )
+                    node = top_right_finder(
+                        leaf.south_neighbor().north_west.edge_points_numbers
                     )
+                    newedge.append(node)
+                    hanging.append((node, corners[0], corners[1]))
                     mode.append(True)
                 else:
                     mode.append(False)
@@ -930,9 +944,9 @@ class QTreeMesh:
                             "the quadtree is not balanced for a 2:1 ratio; "
                             "build QTreeMesh with balancing=True"
                         )
-                    newedge.append(
-                        leaf.east_neighbor().north_west.edge_points_numbers[0]
-                    )
+                    node = leaf.east_neighbor().north_west.edge_points_numbers[0]
+                    newedge.append(node)
+                    hanging.append((node, corners[1], corners[2]))
                     mode.append(True)
                 else:
                     mode.append(False)
@@ -947,9 +961,9 @@ class QTreeMesh:
                             "the quadtree is not balanced for a 2:1 ratio; "
                             "build QTreeMesh with balancing=True"
                         )
-                    newedge.append(
-                        leaf.north_neighbor().south_east.edge_points_numbers[0]
-                    )
+                    node = leaf.north_neighbor().south_east.edge_points_numbers[0]
+                    newedge.append(node)
+                    hanging.append((node, corners[2], corners[3]))
                     mode.append(True)
                 else:
                     mode.append(False)
@@ -964,11 +978,11 @@ class QTreeMesh:
                             "the quadtree is not balanced for a 2:1 ratio; "
                             "build QTreeMesh with balancing=True"
                         )
-                    newedge.append(
-                        top_right_finder(
-                            leaf.west_neighbor().south_east.edge_points_numbers
-                        )
+                    node = top_right_finder(
+                        leaf.west_neighbor().south_east.edge_points_numbers
                     )
+                    newedge.append(node)
+                    hanging.append((node, corners[3], corners[0]))
                     mode.append(True)
                 else:
                     mode.append(False)
@@ -979,6 +993,8 @@ class QTreeMesh:
             cell_type.append(leaf.dimension)
             leaf.edge_points_numbers = newedge
             leaf.cell_type = cell_type
+            leaf.corner_numbers = corners
+            leaf.hanging_nodes = hanging
 
     @staticmethod
     def mode_detection(mode):
@@ -1209,6 +1225,39 @@ class QTreeMesh:
             fem_properties += [element.element_property] * len(new_elements)
 
         return self.nodes, fem_elements, fem_properties
+
+    def constrained_quads(self):
+        """
+        Mesh of quadrilateral elements with hanging nodes as constraints.
+
+        Unlike `adjust_mesh_for_FEM`, which removes hanging nodes by
+        splitting elements, this method keeps one quadrilateral per mesh
+        cell, built from its four corner nodes. The hanging nodes are
+        returned separately as linear constraints: the displacement of the
+        hanging node is the average of the displacements of the two corner
+        nodes of the coarse edge it lies on, so it can be imposed as a
+        multipoint constraint in a solver.
+
+        Returns
+        -------
+        nodes : numpy array
+            (x, y) coordinates of the mesh nodes.
+        quad_elements : list of list of int
+            Four corner node numbers per element (1-based, counter-
+            clockwise).
+        quad_properties : list of float
+            Element properties calculated by averaging pixel intensities.
+        constraints : list of tuple (int, int, int)
+            (hanging node, corner node 1, corner node 2) per hanging node.
+        """
+        quad_elements = []
+        quad_properties = []
+        constraints = []
+        for element in self.elements:
+            quad_elements.append(list(element.corner_numbers))
+            quad_properties.append(element.element_property)
+            constraints += [tuple(node) for node in element.hanging_nodes]
+        return self.nodes, quad_elements, quad_properties, constraints
 
     def trim_padding(self, rows, cols):
         """

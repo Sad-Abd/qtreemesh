@@ -29,6 +29,10 @@ All notable changes to this project will be documented in this file. The format 
 - `grad_crit` for `QTree` and `QTreeMesh.from_image`: cells also split when
   the maximum difference between adjacent pixels inside them exceeds this
   value, refining steep gradients independently of `crit`.
+- `QTreeMesh.constrained_quads()`: one quadrilateral per cell with hanging
+  nodes returned as linear constraints (multipoint-constraint alternative
+  to triangulation); `QTreeElement` now carries `corner_numbers` and
+  `hanging_nodes`.
 - `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
   analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
   the condensed solutions of the six basic cell patterns, applies Dirichlet and

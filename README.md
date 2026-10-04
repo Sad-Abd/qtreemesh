@@ -217,6 +217,10 @@ fem_nodes, fem_elements, fem_properties = mesh.adjust_mesh_for_FEM()
 ```
 The default configuration generates FEM elements as triangles. To include both quadrilateral and triangle elements, set `force_triangulation` to `False`.
 
+Alternatively, `constrained_quads()` keeps one quadrilateral per cell (four corner nodes) and returns the hanging nodes separately as linear constraints — the displacement of a hanging node is the average of the two corner nodes of the coarse edge it lies on — to be imposed as multipoint constraints in the solver:
+```python
+nodes, quad_elements, quad_properties, constraints = mesh.constrained_quads()
+```
 The edges that belong to a single element form the boundary of the mesh, and their endpoints give the boundary nodes — the natural place to apply boundary conditions in a solver:
 ```python
 edges = mesh.boundary_edges()   # (node_1, node_2) pairs, 1-based
