@@ -149,15 +149,7 @@ class SBFEMModel:
         list of tuple
             (node_1, node_2) pairs of 1-based node numbers.
         """
-        counts = {}
-        for element in self._elements:
-            nodes = element["nodes"]
-            n = len(nodes)
-            for i in range(n):
-                a, b = int(nodes[i]), int(nodes[(i + 1) % n])
-                key = (a, b) if a < b else (b, a)
-                counts[key] = counts.get(key, 0) + 1
-        return [edge for edge, count in counts.items() if count == 1]
+        return self.mesh.boundary_edges()
 
     def traction_forces(self, edges, tractions):
         """

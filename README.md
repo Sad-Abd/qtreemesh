@@ -205,6 +205,12 @@ fem_nodes, fem_elements, fem_properties = mesh.adjust_mesh_for_FEM()
 ```
 The default configuration generates FEM elements as triangles. To include both quadrilateral and triangle elements, set `force_triangulation` to `False`.
 
+The edges that belong to a single element form the boundary of the mesh, and their endpoints give the boundary nodes — the natural place to apply boundary conditions in a solver:
+```python
+edges = mesh.boundary_edges()   # (node_1, node_2) pairs, 1-based
+nodes = mesh.boundary_nodes()   # sorted 1-based node numbers
+```
+
 A complete working example of this pipeline — exporting a generated mesh as input files for [SolidsPy](https://github.com/AppliedMechanics-EAFIT/SolidsPy), running the analysis, and visualizing the results — is available in the [`examples/solidpy`](examples/solidpy/) folder.
 
 ### 6. Pixel Lookup and Per-Cell Labels

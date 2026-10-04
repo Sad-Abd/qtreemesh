@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file. The format 
 - `QTreeMesh.trim_padding(rows, cols)`: removes elements that lie entirely in
   the padded region of a preprocessed image; `pixel_to_element()` reports 0
   for padded pixels that no element covers.
+- `QTreeMesh.boundary_edges()` and `QTreeMesh.boundary_nodes()`: the mesh
+  boundary as (node_1, node_2) pairs and as node numbers;
+  `SBFEMModel.boundary_edges` now delegates to the mesh.
 - `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
   analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
   the condensed solutions of the six basic cell patterns, applies Dirichlet and

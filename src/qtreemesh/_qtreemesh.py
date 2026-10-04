@@ -686,6 +686,10 @@ class QTreeMesh:
         Adjust the quadtree mesh for Finite Element Method (FEM) simulations.
     trim_padding()
         Remove elements that lie entirely in the padded region of the image.
+    boundary_edges()
+        Edges of the mesh that belong to a single element.
+    boundary_nodes()
+        Node numbers lying on the boundary edges of the mesh.
     pixel_to_element()
         Map every pixel to the 1-based number of the element covering it.
     element_labels()
@@ -1088,6 +1092,36 @@ class QTreeMesh:
         self.elements = elements
         self.leaves = leaves
         self.content_shape = (rows, cols)
+
+    def boundary_edges(self):
+        """
+        Edges of the mesh that belong to a single element.
+
+        Returns
+        -------
+        list of tuple
+            (node_1, node_2) pairs of 1-based node numbers.
+        """
+        counts = {}
+        for element in self.elements:
+            nodes = element.nodes_numbers
+            n = len(nodes)
+            for i in range(n):
+                a, b = int(nodes[i]), int(nodes[(i + 1) % n])
+                key = (a, b) if a < b else (b, a)
+                counts[key] = counts.get(key, 0) + 1
+        return [edge for edge, count in counts.items() if count == 1]
+
+    def boundary_nodes(self):
+        """
+        Node numbers lying on the boundary edges of the mesh.
+
+        Returns
+        -------
+        list of int
+            Sorted 1-based node numbers.
+        """
+        return sorted({node for edge in self.boundary_edges() for node in edge})
 
     def pixel_to_element(self):
         """
