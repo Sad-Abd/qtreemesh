@@ -158,6 +158,11 @@ For label maps (region indices rather than intensities) pass `label_mode=True`; 
 mesh = QTreeMesh.from_image(labels, label_mode=True)
 ```
 
+To refine cells where the intensity changes steeply (edges, inclusion boundaries) while keeping flat regions coarse, pass `grad_crit`: a cell then also splits when the maximum difference between adjacent pixels inside it exceeds this value, even when the overall intensity range would not split it:
+```python
+mesh = QTreeMesh.from_image(asarray(im), crit=200, grad_crit=20)
+```
+
 `QTree` object may have 4 children `QTree` objects (can be accessed through attributes: `north_west`,
 `north_east`,
 `south_west`,

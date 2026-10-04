@@ -13,6 +13,19 @@ from matplotlib import pyplot as plt
 from matplotlib.collections import PolyCollection
 
 
+def _max_adjacent_difference(array):
+    """
+    Maximum absolute difference between horizontally or vertically adjacent
+    pixels of a 2D array. Zero when the array has a single row or column.
+    """
+    greatest = 0.0
+    if array.shape[1] > 1:
+        greatest = np.abs(np.diff(array, axis=1)).max()
+    if array.shape[0] > 1:
+        greatest = max(greatest, np.abs(np.diff(array, axis=0)).max())
+    return greatest
+
+
 class Point:
     """
     A class used to represent a Point.
@@ -93,6 +106,12 @@ class QTree:
         regardless of the numeric distance between labels. `crit` is not
         used and must stay at its default. Every cell of the resulting
         tree is label-homogeneous. Default False.
+    grad_crit : float, optional
+        Refine where the intensity changes steeply: a cell also splits when
+        the maximum absolute difference between horizontally or vertically
+        adjacent pixels inside it exceeds grad_crit, even if its intensity
+        range satisfies `crit`. None (default) disables this criterion and
+        the associated scan. Cannot be combined with label_mode.
     scale : float, optional
         The ratio between pixels units and real units. For example, when scale is 2,
         each pixel represents a 2*2 ($mm^2$ or $in^2$ or ...) square part of the object.
@@ -163,6 +182,7 @@ class QTree:
         depth=0,
         max_size=None,
         label_mode=False,
+        grad_crit=None,
     ):
         if max_size is not None and max_size < 1:
             raise ValueError("max_size must be at least 1 (or None for no limit)")
@@ -170,6 +190,10 @@ class QTree:
             raise ValueError(
                 "the split criterion is not used in label_mode; leave crit at 1"
             )
+        if label_mode and grad_crit is not None:
+            raise ValueError("grad_crit cannot be combined with label_mode")
+        if grad_crit is not None and (not np.isfinite(grad_crit) or grad_crit <= 0):
+            raise ValueError(f"grad_crit must be positive and finite, got {grad_crit}")
         if np.asarray(array).ndim != 2:
             raise ValueError(
                 f"the image array must be 2D, got {np.asarray(array).ndim} dimensions"
@@ -186,6 +210,7 @@ class QTree:
         self.scale = scale
         self.max_size = max_size
         self.label_mode = label_mode
+        self.grad_crit = grad_crit
 
         self.property = np.mean(array)  # To define material properties by Averaging
         self.bottom_left_corner = bottom_left_corner  # BottomLeft Coordinates
@@ -196,10 +221,12 @@ class QTree:
 
         # SPLITTING
         if label_mode:
-            homogeneous = np.max(array) == np.min(array)
+            split = np.max(array) != np.min(array)
         else:
-            homogeneous = np.max(array) - np.min(array) <= crit
-        if not homogeneous or (
+            split = np.max(array) - np.min(array) > crit
+            if not split and self.grad_crit is not None:
+                split = _max_adjacent_difference(array) > self.grad_crit
+        if split or (
             self.max_size is not None and self.dimension > self.max_size
         ):
             self.sectors()
@@ -227,6 +254,7 @@ class QTree:
             self.depth + 1,
             self.max_size,
             self.label_mode,
+            self.grad_crit,
         )
         bottom_left_north_east = self.bottom_left_corner.coord_sum(
             ((size[1] / 2) * self.scale, (size[0] / 2) * self.scale)
@@ -240,6 +268,7 @@ class QTree:
             self.depth + 1,
             self.max_size,
             self.label_mode,
+            self.grad_crit,
         )
         bottom_left_south_west = self.bottom_left_corner
         self.south_west = QTree(
@@ -251,6 +280,7 @@ class QTree:
             self.depth + 1,
             self.max_size,
             self.label_mode,
+            self.grad_crit,
         )
         bottom_left_south_east = self.bottom_left_corner.coord_sum(
             ((size[1] / 2) * self.scale, 0)
@@ -264,6 +294,7 @@ class QTree:
             self.depth + 1,
             self.max_size,
             self.label_mode,
+            self.grad_crit,
         )
 
     @property
@@ -744,6 +775,7 @@ class QTreeMesh:
         max_size=None,
         balancing=True,
         label_mode=False,
+        grad_crit=None,
     ):
         """
         Build a mesh from an image array in one step.
@@ -770,6 +802,9 @@ class QTreeMesh:
             Whether to balance the quad-tree for a 2:1 ratio. Default True.
         label_mode : bool, optional
             Treat the array as a label map, as in `QTree`. Default False.
+        grad_crit : float, optional
+            Refine where the intensity changes steeply, as in `QTree`.
+            Default None.
 
         Returns
         -------
@@ -783,6 +818,7 @@ class QTreeMesh:
             scale=scale,
             max_size=max_size,
             label_mode=label_mode,
+            grad_crit=grad_crit,
         )
         mesh = cls(quad, balancing=balancing)
         mesh.create_elements()
