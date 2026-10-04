@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 ### Added
+- `QTreeMesh.from_image(image, crit, scale, max_size, balancing)`: builds the
+  mesh from an image array in one step (padding, quadtree, elements).
 - `QTreeMesh.trim_padding(rows, cols)`: removes elements that lie entirely in
   the padded region of a preprocessed image; `pixel_to_element()` reports 0
   for padded pixels that no element covers.

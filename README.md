@@ -148,6 +148,11 @@ quad = QTree(None, imar, 125) # QTree(None, image_array, crit)
 ```
 A cell splits only when the difference between its maximum and minimum pixel intensities is **strictly greater** than `crit`; with the default `crit = 1`, two regions whose intensities differ by exactly 1 are not split.
 
+The preprocessing, quadtree and mesh-generation steps can be done in one call:
+```python
+mesh = QTreeMesh.from_image(asarray(im), crit=125)
+```
+
 `QTree` object may have 4 children `QTree` objects (can be accessed through attributes: `north_west`,
 `north_east`,
 `south_west`,

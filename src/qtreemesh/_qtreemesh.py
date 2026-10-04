@@ -667,6 +667,8 @@ class QTreeMesh:
 
     Methods
     -------
+    from_image()
+        Build a mesh from an image array in one step.
     create_elements()
         Generate elements from cells in quad-tree.
     labeling()
@@ -699,6 +701,48 @@ class QTreeMesh:
         self.elements = []
         self.nodes = None
         self.content_shape = None
+
+    @classmethod
+    def from_image(
+        cls, image, crit=1, scale=1.0, max_size=None, balancing=True
+    ):
+        """
+        Build a mesh from an image array in one step.
+
+        The image is padded with `image_preprocess` to a square whose side is
+        a power of 2, a quadtree is grown on the padded image, and the mesh
+        elements are generated. Use `trim_padding` to drop the elements of
+        the padded region.
+
+        Parameters
+        ----------
+        image : numpy array
+            2D array of pixel intensities.
+        crit : int, optional
+            Splitting criterion, as in `QTree`. Default 1.
+        scale : float, optional
+            Ratio between pixel units and real units, as in `QTree`.
+            Default 1.0.
+        max_size : int, optional
+            Maximum cell size in pixels, as in `QTree`. Default None.
+        balancing : bool, optional
+            Whether to balance the quad-tree for a 2:1 ratio. Default True.
+
+        Returns
+        -------
+        QTreeMesh
+            Mesh with elements generated.
+        """
+        quad = QTree(
+            None,
+            image_preprocess(np.asarray(image)),
+            crit,
+            scale=scale,
+            max_size=max_size,
+        )
+        mesh = cls(quad, balancing=balancing)
+        mesh.create_elements()
+        return mesh
 
     def create_elements(self):
         """
