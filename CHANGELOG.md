@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
+  analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
+  the condensed solutions of the six basic cell patterns, applies Dirichlet and
+  traction boundary conditions, solves, and recovers boundary stresses and
+  interior fields. Requires `scipy`.
+- `scipy` added to the package dependencies.
+
 ## [0.2.0] - 2026-10-04
 ### Changed
 - Rewrote `QTreeMesh.labeling()` to assign node numbers with a hash map instead of a

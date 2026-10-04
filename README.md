@@ -60,6 +60,7 @@
         <li><a href="#4-mesh-generation">Mesh Generation</a></li>
         <li><a href="#5-export-and-implementation">Export and Implementation</a></li>
         <li><a href="#6-pixel-lookup-and-per-cell-labels">Pixel Lookup and Per-Cell Labels</a></li>
+        <li><a href="#7-sbfem-analysis">SBFEM Analysis</a></li>
       </ol>
     </li>
     <li><a href="#theoretical-explanation">Theoretical Explanation</a></li>
@@ -213,6 +214,61 @@ labels = mesh.element_labels()        # exact label of each element
 `pixel_elem[row, col]` holds the 1-based number of the element covering that pixel (row 0 is the top of the image), so `mesh.elements[pixel_elem[row, col] - 1]` is the element itself. `element_labels()` returns one label per element, aligned with `mesh.elements` — the single intensity shared by all pixels under the cell. It raises a `ValueError` when a cell spans multiple intensities (i.e. the mesh is not label-homogeneous); pass `strict=False` to get the minimum intensity under such cells instead.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### 7. SBFEM Analysis
+
+The `qtreemesh.sbfem` subpackage performs linear static elastic analysis of a
+quadtree mesh with the scaled boundary finite element method. Every mesh cell
+is treated as an S-element; its condensed stiffness is obtained from the
+condensed solution of its basic cell pattern (six patterns cover all balanced
+quadtree cells), rotated to the cell orientation and scaled by the cell's
+Young's modulus.
+
+```python
+from qtreemesh.sbfem import SBFEMModel
+
+model = SBFEMModel(mesh, moduli={0: 1.0, 10: 5.0}, nu=0.45)
+```
+
+`moduli` is either a single Young's modulus or a mapping from the exact
+per-cell labels (see `element_labels()`) to the modulus of each region;
+`formulation` is `"plane_strain"` (default) or `"plane_stress"`. The model
+provides:
+
+- `stiffness()` — the sparse global stiffness matrix;
+- `boundary_edges()` — the edges of the mesh that belong to one element;
+- `traction_forces(edges, tractions)` — consistent nodal forces of constant
+  tractions per edge;
+- `solve(dirichlet, force=None)` — the static solution for nodal Dirichlet
+  constraints `[node, direction, value]` (direction 1 = x, 2 = y), returning
+  the displacement vector and the support reactions;
+- `boundary_stress(u)` — the stress at the midpoint of every element edge;
+- `field(element, edge, eta, xi, u)` — displacement and stress at an interior
+  point of one element in its scaled boundary coordinates.
+
+A complete compression example:
+
+```python
+edges = model.boundary_edges()
+top = [(a, b) for (a, b) in edges
+       if mesh.nodes[a - 1, 1] == mesh.nodes[:, 1].max()
+       and mesh.nodes[b - 1, 1] == mesh.nodes[:, 1].max()]
+force = model.traction_forces(top, np.tile([0.0, 1.0], (len(top), 1)))
+
+dirichlet = [[n, 2, 0.0] for (a, b) in edges
+             for n in (a, b) if mesh.nodes[n - 1, 1] == 0.0]
+dirichlet.append([min(n for n in {n for e in edges for n in e}
+                      if mesh.nodes[n - 1, 1] == 0.0), 1, 0.0])
+
+u, reactions = model.solve(np.array(dirichlet), force=force)
+points, stress = model.boundary_stress(u)
+```
+
+The displacement formulation locks for nearly incompressible materials
+(nu approaching 0.5).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 
 ## Theoretical Explanation
 
