@@ -659,6 +659,9 @@ class QTreeMesh:
         List of mesh elements as QTreeElement objects.
     nodes : list
         List of coordinates of mesh nodes.
+    content_shape : None or tuple (rows, cols)
+        Shape of the original image before padding, set by `trim_padding`.
+        None while the mesh covers the whole padded image.
 
 
 
@@ -679,6 +682,8 @@ class QTreeMesh:
         Export mesh as unstructured grid in vtk file.
     adjust_mesh_for_FEM()
         Adjust the quadtree mesh for Finite Element Method (FEM) simulations.
+    trim_padding()
+        Remove elements that lie entirely in the padded region of the image.
     pixel_to_element()
         Map every pixel to the 1-based number of the element covering it.
     element_labels()
@@ -693,6 +698,7 @@ class QTreeMesh:
 
         self.elements = []
         self.nodes = None
+        self.content_shape = None
 
     def create_elements(self):
         """
@@ -990,6 +996,55 @@ class QTreeMesh:
 
         return self.nodes, fem_elements, fem_properties
 
+    def trim_padding(self, rows, cols):
+        """
+        Remove elements that lie entirely in the padded region of the image.
+
+        `image_preprocess` pads images with zero-intensity pixels to a square
+        whose side is a power of 2, and the mesh covers the padded image too.
+        This method deletes every element whose bounding box does not
+        intersect the original image area, which spans `rows` rows and `cols`
+        columns at the top-left corner of the padded array. Elements that
+        straddle the boundary of the original area are kept.
+
+        Element numbers, node numbers and the node array are left unchanged,
+        so nodes may exist that no element uses afterwards.
+
+        Parameters
+        ----------
+        rows, cols : int
+            Number of rows and columns of the original image, before padding.
+
+        Returns
+        -------
+        None.
+
+        Raises
+        ------
+        ValueError
+            If the original shape does not lie within the padded shape.
+        """
+        padded = self.quad_tree.array.shape
+        if not (1 <= rows <= padded[0] and 1 <= cols <= padded[1]):
+            raise ValueError(
+                f"original shape ({rows}, {cols}) must lie within the padded "
+                f"shape {padded}"
+            )
+        scale = self.quad_tree.scale
+        x_edge = cols * scale
+        y_edge = (padded[0] - rows) * scale
+        tol = 1e-9 * scale
+        elements, leaves = [], []
+        for element, leaf in zip(self.elements, self.leaves):
+            xy = np.asarray(element.nodes_coordinates, dtype=float)
+            in_pad = xy[:, 0].min() >= x_edge - tol or xy[:, 1].max() <= y_edge + tol
+            if not in_pad:
+                elements.append(element)
+                leaves.append(leaf)
+        self.elements = elements
+        self.leaves = leaves
+        self.content_shape = (rows, cols)
+
     def pixel_to_element(self):
         """
         Map every pixel of the preprocessed image to the element covering it.
@@ -1000,11 +1055,14 @@ class QTreeMesh:
             Entry [row, col] (row 0 = top of the image) holds the 1-based number
             of the element covering that pixel, so
             self.elements[pixel_elem[row, col] - 1] is the element itself.
+            After `trim_padding`, pixels outside the original image area that
+            no element covers hold 0.
 
         Raises
         ------
         RuntimeError
-            If some pixels are not covered by any element.
+            If some pixels inside the original image area are not covered by
+            any element (or, before `trim_padding`, if any pixel is uncovered).
         """
         scale = self.quad_tree.scale
         n_rows, n_cols = self.quad_tree.array.shape
@@ -1019,8 +1077,16 @@ class QTreeMesh:
             size_y = int(round((hi[1] - lo[1]) / scale))
             rows = slice(n_rows - r0_bottom - size_y, n_rows - r0_bottom)
             pixel_elem[rows, c0 : c0 + size_x] = element.number
-        if (pixel_elem < 0).any():
-            raise RuntimeError("some pixels are not covered by a quadtree cell")
+        uncovered = pixel_elem < 0
+        if uncovered.any():
+            if self.content_shape is not None:
+                rows, cols = self.content_shape
+                outside = np.ones(pixel_elem.shape, dtype=bool)
+                outside[:rows, :cols] = False
+                uncovered &= ~outside
+            if uncovered.any():
+                raise RuntimeError("some pixels are not covered by a quadtree cell")
+            pixel_elem[pixel_elem < 0] = 0
         return pixel_elem
 
     def element_labels(self, strict=True):

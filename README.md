@@ -213,6 +213,8 @@ labels = mesh.element_labels()        # exact label of each element
 
 `pixel_elem[row, col]` holds the 1-based number of the element covering that pixel (row 0 is the top of the image), so `mesh.elements[pixel_elem[row, col] - 1]` is the element itself. `element_labels()` returns one label per element, aligned with `mesh.elements` — the single intensity shared by all pixels under the cell. It raises a `ValueError` when a cell spans multiple intensities (i.e. the mesh is not label-homogeneous); pass `strict=False` to get the minimum intensity under such cells instead.
 
+`image_preprocess()` pads images to a square power of 2, and the mesh covers the padded region too. `mesh.trim_padding(rows, cols)` removes every element that lies entirely in the padded region, where `rows` and `cols` are the shape of the original image before padding. Cells straddling the boundary are kept, element and node numbers are unchanged, and `pixel_to_element()` reports 0 for padded pixels that no element covers.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### 7. SBFEM Analysis
