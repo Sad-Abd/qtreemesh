@@ -339,7 +339,7 @@ While this algorithm has many applications in various fields of science (e.g., c
   - [x] Handling hanging nodes
   - [ ] Prepare required data
   - [ ] Illustrate usage in open-source FEM programs (initial tries in [`examples/solidpy`](examples/solidpy/))
-- [ ] Intrinsic SBFEM implementation in the package
+- [x] Intrinsic SBFEM implementation in the package
 - [x] Expose a pixel → element lookup and exact per-cell material labels
 
 
