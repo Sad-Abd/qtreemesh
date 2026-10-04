@@ -9,7 +9,8 @@ Author : Sadjad Abedi
 """
 
 import numpy as np
-from matplotlib.pyplot import figure, fill, show, axis
+from matplotlib import pyplot as plt
+from matplotlib.collections import PolyCollection
 
 
 class Point:
@@ -942,9 +943,14 @@ class QTreeMesh:
         elif number_edge_points == 4:
             return [6, 0]
 
-    def draw(self, fill_inside=True, edge_color=None, save_name=None):
+    def draw(self, fill_inside=True, edge_color=None, save_name=None, show=True):
         """
         Draw elements with filling inside.
+
+        All elements are drawn as a single polygon collection. When
+        `fill_inside` is True, each element is filled with the grayscale
+        value of its property divided by 255, clipped to [0, 1]. The figure
+        is saved before it is shown.
 
         Parameters
         ----------
@@ -955,27 +961,45 @@ class QTreeMesh:
             The color for element edges.
         save_name : None/str, optional
             name of file to save figure.
+        show : bool, optional
+            Whether to display the figure. Default True.
 
         Returns
         -------
-            None.
+        matplotlib.figure.Figure
+            The created figure.
 
         """
-        fig = figure(figsize=(10, 10), frameon=False)
-        axis("off")
-        for element in self.elements:
-            fill(
-                [p[0] for p in element.nodes_coordinates],
-                [p[1] for p in element.nodes_coordinates],
-                facecolor=str(element.element_property / 255)
-                if fill_inside
-                else "white",
-                edgecolor=edge_color,
+        fig = plt.figure(figsize=(10, 10), frameon=False)
+        ax = fig.add_subplot(1, 1, 1)
+        ax.set_axis_off()
+        polygons = [
+            np.asarray(element.nodes_coordinates, dtype=float)
+            for element in self.elements
+        ]
+        if fill_inside:
+            gray = np.clip(
+                np.array(
+                    [element.element_property for element in self.elements],
+                    dtype=float,
+                )
+                / 255.0,
+                0.0,
+                1.0,
             )
+            facecolors = np.column_stack([gray, gray, gray, np.ones_like(gray)])
+        else:
+            facecolors = "white"
+        ax.add_collection(
+            PolyCollection(polygons, facecolors=facecolors, edgecolors=edge_color)
+        )
+        ax.autoscale_view()
         fig.tight_layout()
-        show()
         if save_name:
             fig.savefig(save_name)
+        if show:
+            plt.show()
+        return fig
 
     def vtk_export(
         self,

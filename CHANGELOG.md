@@ -15,6 +15,10 @@ All notable changes to this project will be documented in this file. The format 
   elements with proper VTK triangle/quadrilateral cell types, and
   `cell_data=True` writes per-cell `Label`, `Mode`, `Rotation` and `Size`
   arrays next to the averaged intensity.
+- `QTreeMesh.draw` is redrawn as a single polygon collection (one figure
+  artist instead of one per element), saves the figure before showing it,
+  accepts `show=False` and returns the figure; fill colors are clipped to a
+  valid grayscale range instead of failing on intensities above 255.
 - `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
   analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
   the condensed solutions of the six basic cell patterns, applies Dirichlet and
