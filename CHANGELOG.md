@@ -33,6 +33,12 @@ All notable changes to this project will be documented in this file. The format 
   nodes returned as linear constraints (multipoint-constraint alternative
   to triangulation); `QTreeElement` now carries `corner_numbers` and
   `hanging_nodes`.
+- Performance: the split criterion is read from per-level blockwise max/min
+  tables of the root array (built once, exact by construction) instead of
+  scanning every cell array twice; the cell property (mean intensity) is
+  computed on first access, so inner tree nodes never pay for it. Meshes are
+  bit-identical to the previous implementation; non-square direct `QTree`
+  inputs fall back to the direct scan.
 - `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
   analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
   the condensed solutions of the six basic cell patterns, applies Dirichlet and

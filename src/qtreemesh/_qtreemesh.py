@@ -76,6 +76,25 @@ class Point:
         return new_point
 
 
+class _LazyProperty:
+    """
+    Descriptor for the mean pixel intensity of a cell's array (`QTree.property`).
+
+    The value is computed on first access and cached; assigning to the
+    attribute stores the given value.
+    """
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        if obj._property is None:
+            obj._property = np.mean(obj.array)
+        return obj._property
+
+    def __set__(self, obj, value):
+        obj._property = value
+
+
 class QTree:
     """
     A class used to represent a quadtree.
@@ -211,8 +230,11 @@ class QTree:
         self.max_size = max_size
         self.label_mode = label_mode
         self.grad_crit = grad_crit
-
-        self.property = np.mean(array)  # To define material properties by Averaging
+        self._pyramid_source = parent._pyramid_source if parent is not None else self
+        self._block_max = None
+        self._block_min = None
+        self._pyramid_failed = False
+        self._property = None
         self.bottom_left_corner = bottom_left_corner  # BottomLeft Coordinates
         self.top_right_corner = bottom_left_corner.coord_sum(
             (array.shape[1] * scale, array.shape[0] * scale)
@@ -221,15 +243,81 @@ class QTree:
 
         # SPLITTING
         if label_mode:
-            split = np.max(array) != np.min(array)
+            split = self._cell_range() != 0
         else:
-            split = np.max(array) - np.min(array) > crit
+            split = self._cell_range() > crit
             if not split and self.grad_crit is not None:
                 split = _max_adjacent_difference(array) > self.grad_crit
         if split or (
             self.max_size is not None and self.dimension > self.max_size
         ):
             self.sectors()
+
+    def _block_indices(self):
+        """
+        Position (row, column) of the cell within its level of the pyramid.
+
+        Pyramid rows count from the top of the root array, while the y
+        coordinate grows upwards, so the row index follows from the cell's
+        top edge.
+        """
+        side = self.dimension
+        top = self.bottom_left_corner.y_coord / self.scale + side
+        cols = self.bottom_left_corner.x_coord / self.scale
+        root_side = self._pyramid_source.dimension
+        return int(round((root_side - top) / side)), int(round(cols / side))
+
+    def _build_pyramids(self):
+        """
+        Per-level blockwise max/min tables of the root array.
+
+        Entry k of each list holds, for every 2^k x 2^k block of the root
+        array, its maximum (minimum). The tables are exact, so a lookup
+        returns the same value as np.max (np.min) on the cell's array. They
+        are built only when the root array is a square with a power-of-2
+        side; otherwise the flags mark the direct computation as fallback.
+        """
+        n = self.array.shape[0]
+        if self.array.shape[0] != self.array.shape[1] or n < 2 or n & (n - 1) != 0:
+            self._pyramid_failed = True
+            return
+        block_max = [self.array]
+        block_min = [self.array]
+        while block_max[-1].shape[0] > 1:
+            upper_max = block_max[-1]
+            upper_min = block_min[-1]
+            block_max.append(
+                np.maximum(
+                    np.maximum(upper_max[0::2, 0::2], upper_max[0::2, 1::2]),
+                    np.maximum(upper_max[1::2, 0::2], upper_max[1::2, 1::2]),
+                )
+            )
+            block_min.append(
+                np.minimum(
+                    np.minimum(upper_min[0::2, 0::2], upper_min[0::2, 1::2]),
+                    np.minimum(upper_min[1::2, 0::2], upper_min[1::2, 1::2]),
+                )
+            )
+        self._block_max = block_max
+        self._block_min = block_min
+
+    def _cell_range(self):
+        """
+        Difference between the maximum and minimum of the cell's array.
+
+        Uses the level pyramids of the root array when available, otherwise
+        scans the array directly.
+        """
+        source = self._pyramid_source
+        if source._block_max is None and not source._pyramid_failed:
+            source._build_pyramids()
+        if source._block_max is None:
+            return np.max(self.array) - np.min(self.array)
+        level = int(round(np.log2(self.dimension)))
+        row, col = self._block_indices()
+        return int(source._block_max[level][row, col]) - int(
+            source._block_min[level][row, col]
+        )
 
     def sectors(self):
         """
@@ -534,6 +622,10 @@ class QTree:
                         leaves.append(node.west_neighbor())
                     if self.need_split(node.east_neighbor()):
                         leaves.append(node.east_neighbor())
+
+    # placed after every @property use in this class body: the name
+    # `property` must still resolve to the builtin at those lines
+    property = _LazyProperty()
 
 
 class QTreeElement:
