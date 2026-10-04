@@ -641,6 +641,13 @@ class QTreeElement:
         return new_nodes_numbers
 
 
+def _write_scalar_block(file_open, name, values):
+    """Write one legacy-VTK scalar array block for cell data."""
+    file_open.write(f"SCALARS {name} float 1 \nLOOKUP_TABLE default \n")
+    for item in values:
+        file_open.write(f"{item}\n")
+
+
 class QTreeMesh:
     """
     A class used to represent a quadtree mesh.
@@ -970,7 +977,13 @@ class QTreeMesh:
         if save_name:
             fig.savefig(save_name)
 
-    def vtk_export(self, filename="output.vtk"):
+    def vtk_export(
+        self,
+        filename="output.vtk",
+        adjusted=False,
+        force_triangulation=True,
+        cell_data=False,
+    ):
         """
         Export mesh as unstructured grid to .vtk file.
         Creating the file is done manually, and no library is used.
@@ -979,12 +992,48 @@ class QTreeMesh:
         ----------
         filename : str, optional
             Output file name.
+        adjusted : bool, optional
+            If False (default), every element is exported as one polygon
+            cell. If True, the elements are exported as treated by
+            `quad_treatment`: triangles and/or quadrilaterals with their
+            proper VTK cell types (5 and 9).
+        force_triangulation : bool, optional
+            Passed to `quad_treatment` when `adjusted` is True. Default True.
+        cell_data : bool, optional
+            If True, additional per-cell scalar arrays are written: the
+            exact cell label (the minimum intensity for inhomogeneous
+            cells), the basic mode number, the rotation angle and the cell
+            size, followed by the element property. Default False.
 
         Returns
         -------
             None.
 
         """
+        if adjusted:
+            labels = self.element_labels(strict=False)
+            cells, types, props = [], [], []
+            label_data, mode_data, rotation_data, size_data = [], [], [], []
+            for element, label in zip(self.elements, labels):
+                connectivity = element.quad_treatment(force_triangulation)
+                for sub_cells in connectivity:
+                    cells.append(np.array(sub_cells) - 1)
+                    types.append(5 if len(sub_cells) == 3 else 9)
+                repeat = len(connectivity)
+                props += [element.element_property] * repeat
+                label_data += [label] * repeat
+                mode_data += [element.element_type[0]] * repeat
+                rotation_data += [element.element_type[1]] * repeat
+                size_data += [element.element_type[2]] * repeat
+        else:
+            cells = [np.array(e.nodes_numbers) - 1 for e in self.elements]
+            types = [7] * len(cells)
+            props = [e.element_property for e in self.elements]
+            label_data = list(self.element_labels(strict=False))
+            mode_data = [e.element_type[0] for e in self.elements]
+            rotation_data = [e.element_type[1] for e in self.elements]
+            size_data = [e.element_type[2] for e in self.elements]
+
         file_open = open(filename, "w", encoding="utf-8")
         file_open.write("# vtk DataFile Version 2.0\nOutput Data\nASCII\n")
         file_open.write("DATASET UNSTRUCTURED_GRID\n")
@@ -992,25 +1041,24 @@ class QTreeMesh:
         file_open.write(f"POINTS {total_points} float\n")
         for each in self.nodes:
             file_open.write(f"{each[0]} {each[1]} 0.0\n")
-        total_cells = len(self.elements)
-        new_connectivity = [np.array(each.nodes_numbers) - 1 for each in self.elements]
-        total_data = sum([i.shape[0] for i in new_connectivity]) + len(new_connectivity)
+        total_cells = len(cells)
+        total_data = sum(i.shape[0] for i in cells) + total_cells
         file_open.write(f"CELLS {total_cells} {total_data}\n")
-
-        for each in new_connectivity:
+        for each in cells:
             file_open.write(f"{each.shape[0]} ")
             file_open.writelines(str(np.flip(each))[1:-1])
             file_open.write("\n")
-
         file_open.write(f"CELL_TYPES {total_cells}\n")
-        for i in range(total_cells):
-            file_open.write("7\n")
+        for cell_type in types:
+            file_open.write(f"{cell_type}\n")
 
-        material = [each.element_property for each in self.elements]
         file_open.write(f"CELL_DATA {total_cells}\n")
-        file_open.write("SCALARS Average-Intensity float 1 \nLOOKUP_TABLE default \n")
-        for item in material:
-            file_open.write(f"{item}\n")
+        if cell_data:
+            _write_scalar_block(file_open, "Label", label_data)
+            _write_scalar_block(file_open, "Mode", mode_data)
+            _write_scalar_block(file_open, "Rotation", rotation_data)
+            _write_scalar_block(file_open, "Size", size_data)
+        _write_scalar_block(file_open, "Average-Intensity", props)
 
         file_open.close()
 

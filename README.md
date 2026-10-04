@@ -198,6 +198,8 @@ and the result can be viewed in visualization applications such as [ParaView](ht
 
 It's worth mentioning that the method `vtk_export()` has no dependency to vtk related libraries and create `.vtk` file manually.
 
+By default every element is exported as one polygon cell. With `mesh.vtk_export(filename, adjusted=True)` the elements are exported as treated for FEM — triangles and/or quadrilaterals with their proper VTK cell types (`force_triangulation` selects between the two, as in `adjust_mesh_for_FEM`). With `cell_data=True` the file additionally carries per-cell scalar arrays: the exact `Label` of the cell, its `Mode`, `Rotation` and `Size`, next to the averaged intensity.
+
 It is also possible to adjust the elements to handle hanging nodes and generate a mesh that is either triangular or quadrilateral/triangular (based on templates available in [[2]] and [[3]]).:
 
 ```python
