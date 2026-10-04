@@ -20,6 +20,7 @@ import scipy.linalg as sla
 
 from .condense import PatternCache
 from .patterns import (
+    _node_shift,
     canonical_polygon,
     edge_operators,
     isotropic_tangent,
@@ -86,6 +87,7 @@ class SBFEMModel:
                     "dofs": np.stack([2 * (nodes - 1), 2 * (nodes - 1) + 1]).ravel(order="F"),
                     "mode": mode,
                     "rotation": rotation,
+                    "shift": _node_shift(mode, rotation),
                     "E": float(E),
                     "centre": xy.mean(axis=0),
                     "R_size": extent / 2.0,
@@ -196,7 +198,6 @@ class SBFEMModel:
 
     def _pullback(self, element, u):
         """Canonical-frame nodal displacements of one element."""
-        sol = self._cache.canonical(element["mode"])
         T = transform(element["mode"], element["rotation"])
         return T.T @ u[element["dofs"]] / element["R_size"]
 
@@ -226,7 +227,10 @@ class SBFEMModel:
         Stress at the midpoint of every element edge.
 
         The stress is evaluated in the basic pattern's frame from the element's
-        radial solution and rotated to the element's own frame.
+        radial solution, scaled by the element's Young's modulus and rotated
+        to the element's own frame. The rows follow the elements in mesh
+        order and, within an element, the edges of its node list (edge i runs
+        from node i to node (i + 1) % n).
 
         Parameters
         ----------
@@ -245,13 +249,16 @@ class SBFEMModel:
             u_c, u_xi_c, _sol = self._canonical_solution(element, u)
             xy_c = canonical_polygon(element["mode"])
             n = xy_c.shape[0]
-            for i in range(n):
+            R = rotation_matrix(element["rotation"])
+            for edge in range(n):
+                # edge `edge` of the element's node list is edge
+                # (edge - shift) % n of the basic pattern
+                i = (edge - element["shift"]) % n
                 j = (i + 1) % n
                 B1, B2 = edge_operators(xy_c[i], xy_c[j], 0.0)
                 dm = [2 * i, 2 * i + 1, 2 * j, 2 * j + 1]
                 eps_c = B1 @ u_xi_c[dm] + B2 @ u_c[dm]
-                sigma_c = self._A @ eps_c
-                R = rotation_matrix(element["rotation"])
+                sigma_c = element["E"] * (self._A @ eps_c)
                 points.append(
                     element["centre"]
                     + element["R_size"] * R @ (0.5 * (xy_c[i] + xy_c[j]))
@@ -262,6 +269,8 @@ class SBFEMModel:
     def field(self, element_number, edge, eta, xi, u):
         """
         Displacement and stress at an interior point of one element.
+
+        The stress includes the element's Young's modulus.
 
         The point is given in the S-element's polar coordinates: `edge` and
         `eta` locate the point on the element boundary (edge index within the
@@ -297,11 +306,18 @@ class SBFEMModel:
         if not 0 <= edge < n:
             raise ValueError(f"edge must be in 0..{n - 1}")
 
+        # edge `edge` of the element's node list is edge (edge - shift) % n
+        # of the basic pattern
+        i = (edge - element["shift"]) % n
+        j = (i + 1) % n
+
         sol = self._cache.canonical(mode)
         u_c = self._pullback(element, u)
         c = np.linalg.solve(sol.v, u_c)
+        # radial solution u(xi) = v xi^d c; the translation modes have
+        # exponent 0, the others xi^S = expm(S ln xi)
         S_pp = sol.d[2:, 2:]
-        xi_S = sla.fractional_matrix_power(S_pp, xi)
+        xi_S = sla.expm(S_pp * np.log(xi))
         grow = np.zeros_like(sol.d)
         grow[:2, :2] = np.eye(2)
         grow[2:, 2:] = xi_S
@@ -310,20 +326,21 @@ class SBFEMModel:
         u_c_xi_nodal = sol.v @ grow @ c
         du_c_xi_nodal = sol.v @ rate @ c
 
-        j = (edge + 1) % n
-        p_c, q_c = xy_c[edge], xy_c[j]
+        p_c, q_c = xy_c[i], xy_c[j]
         B1, B2 = edge_operators(p_c, q_c, eta)
         N1 = (1.0 - eta) / 2.0
         N2 = (1.0 + eta) / 2.0
-        dm = [2 * edge, 2 * edge + 1, 2 * j, 2 * j + 1]
-        eps_c = B1 @ du_c_xi_nodal[dm] + B2 @ u_c_xi_nodal[dm]
-        sigma_c = self._A @ eps_c
+        dm = [2 * i, 2 * i + 1, 2 * j, 2 * j + 1]
+        # strain = B1 u'(xi) + B2 u(xi) / xi
+        eps_c = B1 @ du_c_xi_nodal[dm] + B2 @ u_c_xi_nodal[dm] / xi
+        sigma_c = element["E"] * (self._A @ eps_c)
 
         R = rotation_matrix(element["rotation"])
-        u_local = np.array([u_c_xi_nodal[2 * edge], u_c_xi_nodal[2 * edge + 1],
-                            u_c_xi_nodal[2 * j], u_c_xi_nodal[2 * j + 1]])
         disp_c = np.array(
-            [N1 * u_local[0] + N2 * u_local[2], N1 * u_local[1] + N2 * u_local[3]]
+            [
+                N1 * u_c_xi_nodal[dm[0]] + N2 * u_c_xi_nodal[dm[2]],
+                N1 * u_c_xi_nodal[dm[1]] + N2 * u_c_xi_nodal[dm[3]],
+            ]
         )
         x_c = xi * (N1 * p_c + N2 * q_c)
         point = element["centre"] + element["R_size"] * R @ x_c
