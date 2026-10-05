@@ -39,6 +39,10 @@ All notable changes to this project will be documented in this file. The format 
   computed on first access, so inner tree nodes never pay for it. Meshes are
   bit-identical to the previous implementation; non-square direct `QTree`
   inputs fall back to the direct scan.
+- Performance: balancing and hanging-node detection read neighbors from a
+  shared (level, row, column) cell index instead of walking the tree
+  recursively; the recursive `north_neighbor`-style methods remain available
+  and return the same cells. Meshes are bit-identical.
 - `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
   analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
   the condensed solutions of the six basic cell patterns, applies Dirichlet and

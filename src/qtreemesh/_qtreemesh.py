@@ -235,11 +235,22 @@ class QTree:
         self._block_min = None
         self._pyramid_failed = False
         self._property = None
+        if parent is None:
+            n = array.shape[0]
+            square = (
+                array.shape[0] == array.shape[1] and n >= 2 and n & (n - 1) == 0
+            )
+            self._cell_index = {} if square else None
+            self._index_top = int(round(np.log2(n))) if square else None
+        self._index_key = None
         self.bottom_left_corner = bottom_left_corner  # BottomLeft Coordinates
         self.top_right_corner = bottom_left_corner.coord_sum(
             (array.shape[1] * scale, array.shape[0] * scale)
         )  # TopRight Coordinates
         self.dimension = np.sqrt(array.size)  # To define scale requirement
+        if self._pyramid_source._cell_index is not None:
+            self._index_key = self._make_index_key()
+            self._pyramid_source._cell_index[self._index_key] = self
 
         # SPLITTING
         if label_mode:
@@ -266,6 +277,43 @@ class QTree:
         cols = self.bottom_left_corner.x_coord / self.scale
         root_side = self._pyramid_source.dimension
         return int(round((root_side - top) / side)), int(round(cols / side))
+
+    def _make_index_key(self):
+        """
+        Key (level, row, column) of the cell in the shared cell index. The
+        level counts cell doublings from the 1-pixel level.
+        """
+        side_log = int(round(np.log2(self.dimension)))
+        row, col = self._block_indices()
+        return (side_log, row, col)
+
+    def _neighbor(self, direction):
+        """
+        The cell adjacent to one side, read from the cell index.
+
+        Returns the same cell as the corresponding `north_neighbor`-style
+        method: the smallest registered cell that fully covers the adjacent
+        strip, whatever its size, or None when the strip lies outside the
+        image. Falls back to the recursive method for arrays without a
+        cell index.
+        """
+        index = self._pyramid_source._cell_index
+        if index is None:
+            return getattr(self, direction + "_neighbor")()
+        level, row, col = self._index_key
+        for k in range(self._pyramid_source._index_top - level + 1):
+            if direction == "north":
+                key = (level + k, (row - 1) >> k, col >> k)
+            elif direction == "south":
+                key = (level + k, (row + 1) >> k, col >> k)
+            elif direction == "west":
+                key = (level + k, row >> k, (col - 1) >> k)
+            else:
+                key = (level + k, row >> k, (col + 1) >> k)
+            node = index.get(key)
+            if node is not None:
+                return node
+        return None
 
     def _build_pyramids(self):
         """
@@ -561,34 +609,22 @@ class QTree:
         """
         if node is None:
             return False
-        if node.north_neighbor() is not None:
-            if node.north_neighbor().divided:
-                if (
-                    node.north_neighbor().south_west.divided
-                    or node.north_neighbor().south_east.divided
-                ):
-                    return True
-        if node.south_neighbor() is not None:
-            if node.south_neighbor().divided:
-                if (
-                    node.south_neighbor().north_west.divided
-                    or node.south_neighbor().north_east.divided
-                ):
-                    return True
-        if node.west_neighbor() is not None:
-            if node.west_neighbor().divided:
-                if (
-                    node.west_neighbor().north_east.divided
-                    or node.west_neighbor().south_east.divided
-                ):
-                    return True
-        if node.east_neighbor() is not None:
-            if node.east_neighbor().divided:
-                if (
-                    node.east_neighbor().north_west.divided
-                    or node.east_neighbor().south_west.divided
-                ):
-                    return True
+        north = node._neighbor("north")
+        if north is not None and north.divided:
+            if north.south_west.divided or north.south_east.divided:
+                return True
+        south = node._neighbor("south")
+        if south is not None and south.divided:
+            if south.north_west.divided or south.north_east.divided:
+                return True
+        west = node._neighbor("west")
+        if west is not None and west.divided:
+            if west.north_east.divided or west.south_east.divided:
+                return True
+        east = node._neighbor("east")
+        if east is not None and east.divided:
+            if east.north_west.divided or east.south_west.divided:
+                return True
 
         return False
 
@@ -614,14 +650,10 @@ class QTree:
                             node.north_east,
                         ]
                     )
-                    if self.need_split(node.north_neighbor()):
-                        leaves.append(node.north_neighbor())
-                    if self.need_split(node.south_neighbor()):
-                        leaves.append(node.south_neighbor())
-                    if self.need_split(node.west_neighbor()):
-                        leaves.append(node.west_neighbor())
-                    if self.need_split(node.east_neighbor()):
-                        leaves.append(node.east_neighbor())
+                    for direction in ("north", "south", "west", "east"):
+                        neighbor = node._neighbor(direction)
+                        if neighbor is not None and self.need_split(neighbor):
+                            leaves.append(neighbor)
 
     # placed after every @property use in this class body: the name
     # `property` must still resolve to the builtin at those lines
@@ -1010,15 +1042,15 @@ class QTreeMesh:
             hanging = list()
 
             newedge.append(leaf.edge_points_numbers[0])
-            if leaf.south_neighbor() is not None:
-                if leaf.south_neighbor().divided:
-                    if leaf.south_neighbor().north_west.divided:
+            if leaf._neighbor("south") is not None:
+                if leaf._neighbor("south").divided:
+                    if leaf._neighbor("south").north_west.divided:
                         raise ValueError(
                             "the quadtree is not balanced for a 2:1 ratio; "
                             "build QTreeMesh with balancing=True"
                         )
                     node = top_right_finder(
-                        leaf.south_neighbor().north_west.edge_points_numbers
+                        leaf._neighbor("south").north_west.edge_points_numbers
                     )
                     newedge.append(node)
                     hanging.append((node, corners[0], corners[1]))
@@ -1029,14 +1061,14 @@ class QTreeMesh:
                 mode.append(False)
 
             newedge.append(leaf.edge_points_numbers[1])
-            if leaf.east_neighbor() is not None:
-                if leaf.east_neighbor().divided:
-                    if leaf.east_neighbor().north_west.divided:
+            if leaf._neighbor("east") is not None:
+                if leaf._neighbor("east").divided:
+                    if leaf._neighbor("east").north_west.divided:
                         raise ValueError(
                             "the quadtree is not balanced for a 2:1 ratio; "
                             "build QTreeMesh with balancing=True"
                         )
-                    node = leaf.east_neighbor().north_west.edge_points_numbers[0]
+                    node = leaf._neighbor("east").north_west.edge_points_numbers[0]
                     newedge.append(node)
                     hanging.append((node, corners[1], corners[2]))
                     mode.append(True)
@@ -1046,14 +1078,14 @@ class QTreeMesh:
                 mode.append(False)
 
             newedge.append(leaf.edge_points_numbers[2])
-            if leaf.north_neighbor() is not None:
-                if leaf.north_neighbor().divided:
-                    if leaf.north_neighbor().south_east.divided:
+            if leaf._neighbor("north") is not None:
+                if leaf._neighbor("north").divided:
+                    if leaf._neighbor("north").south_east.divided:
                         raise ValueError(
                             "the quadtree is not balanced for a 2:1 ratio; "
                             "build QTreeMesh with balancing=True"
                         )
-                    node = leaf.north_neighbor().south_east.edge_points_numbers[0]
+                    node = leaf._neighbor("north").south_east.edge_points_numbers[0]
                     newedge.append(node)
                     hanging.append((node, corners[2], corners[3]))
                     mode.append(True)
@@ -1063,15 +1095,15 @@ class QTreeMesh:
                 mode.append(False)
 
             newedge.append(leaf.edge_points_numbers[3])
-            if leaf.west_neighbor() is not None:
-                if leaf.west_neighbor().divided:
-                    if leaf.west_neighbor().south_east.divided:
+            if leaf._neighbor("west") is not None:
+                if leaf._neighbor("west").divided:
+                    if leaf._neighbor("west").south_east.divided:
                         raise ValueError(
                             "the quadtree is not balanced for a 2:1 ratio; "
                             "build QTreeMesh with balancing=True"
                         )
                     node = top_right_finder(
-                        leaf.west_neighbor().south_east.edge_points_numbers
+                        leaf._neighbor("west").south_east.edge_points_numbers
                     )
                     newedge.append(node)
                     hanging.append((node, corners[3], corners[0]))
