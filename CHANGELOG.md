@@ -43,6 +43,10 @@ All notable changes to this project will be documented in this file. The format 
   shared (level, row, column) cell index instead of walking the tree
   recursively; the recursive `north_neighbor`-style methods remain available
   and return the same cells. Meshes are bit-identical.
+- Performance: the quadtree is grown from the root with an explicit cell
+  stack instead of recursion; `sectors()` now only creates the four child
+  cells. Trees of any depth build without recursion limits, with identical
+  results.
 - `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
   analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
   the condensed solutions of the six basic cell patterns, applies Dirichlet and

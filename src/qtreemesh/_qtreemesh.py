@@ -166,7 +166,7 @@ class QTree:
     Methods
     -------
     sectors()
-        A recursive function to partition the array and create subtrees.
+        Create the four child cells of the cell.
     count_leaves()
         A property that returns the total number of external nodes (leaves).
     save_leaves()
@@ -252,17 +252,44 @@ class QTree:
             self._index_key = self._make_index_key()
             self._pyramid_source._cell_index[self._index_key] = self
 
-        # SPLITTING
-        if label_mode:
+        if parent is None:
+            self._grow()
+
+    def _should_split(self):
+        """
+        Splitting decision of the cell: the split criterion (intensity
+        range, or label homogeneity in `label_mode`, plus the gradient
+        criterion when `grad_crit` is set) or the maximum cell size.
+        """
+        if self.label_mode:
             split = self._cell_range() != 0
         else:
-            split = self._cell_range() > crit
+            split = self._cell_range() > self.crit
             if not split and self.grad_crit is not None:
-                split = _max_adjacent_difference(array) > self.grad_crit
-        if split or (
+                split = _max_adjacent_difference(self.array) > self.grad_crit
+        return split or (
             self.max_size is not None and self.dimension > self.max_size
-        ):
-            self.sectors()
+        )
+
+    def _grow(self):
+        """
+        Grow the tree from this root cell with an explicit stack.
+
+        Every cell is visited once and split when `_should_split` holds,
+        which builds the same tree as the equivalent depth-first recursion
+        without recursion-depth limits.
+        """
+        stack = [self]
+        while stack:
+            node = stack.pop()
+            if node._should_split():
+                node.sectors()
+                stack += [
+                    node.north_west,
+                    node.north_east,
+                    node.south_west,
+                    node.south_east,
+                ]
 
     def _block_indices(self):
         """
@@ -369,7 +396,9 @@ class QTree:
 
     def sectors(self):
         """
-        A recursive function to create subtrees.
+        Create the four child cells of the cell.
+
+        Called by the growth of the root (`_grow`) and by `balancing`.
 
         Returns
         -------
