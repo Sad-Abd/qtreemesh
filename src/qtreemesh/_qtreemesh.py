@@ -856,11 +856,11 @@ class QTreeElement:
         return new_nodes_numbers
 
 
-def _write_scalar_block(file_open, name, values):
-    """Write one legacy-VTK scalar array block for cell data."""
-    file_open.write(f"SCALARS {name} float 1 \nLOOKUP_TABLE default \n")
-    for item in values:
-        file_open.write(f"{item}\n")
+def _scalar_lines(name, values):
+    """Lines of one legacy-VTK scalar array block for cell data."""
+    return [f"SCALARS {name} float 1 ", "LOOKUP_TABLE default "] + [
+        str(item) for item in values
+    ]
 
 
 class QTreeMesh:
@@ -1321,33 +1321,33 @@ class QTreeMesh:
             rotation_data = [e.element_type[1] for e in self.elements]
             size_data = [e.element_type[2] for e in self.elements]
 
-        file_open = open(filename, "w", encoding="utf-8")
-        file_open.write("# vtk DataFile Version 2.0\nOutput Data\nASCII\n")
-        file_open.write("DATASET UNSTRUCTURED_GRID\n")
         total_points = self.nodes.shape[0]
-        file_open.write(f"POINTS {total_points} float\n")
-        for each in self.nodes:
-            file_open.write(f"{each[0]} {each[1]} 0.0\n")
         total_cells = len(cells)
         total_data = sum(i.shape[0] for i in cells) + total_cells
-        file_open.write(f"CELLS {total_cells} {total_data}\n")
-        for each in cells:
-            file_open.write(f"{each.shape[0]} ")
-            file_open.writelines(str(np.flip(each))[1:-1])
-            file_open.write("\n")
-        file_open.write(f"CELL_TYPES {total_cells}\n")
-        for cell_type in types:
-            file_open.write(f"{cell_type}\n")
-
-        file_open.write(f"CELL_DATA {total_cells}\n")
+        lines = [
+            "# vtk DataFile Version 2.0",
+            "Output Data",
+            "ASCII",
+            "DATASET UNSTRUCTURED_GRID",
+            f"POINTS {total_points} float",
+        ]
+        lines += [f"{each[0]} {each[1]} 0.0" for each in self.nodes]
+        lines.append(f"CELLS {total_cells} {total_data}")
+        lines += [
+            f"{each.shape[0]} {str(np.flip(each))[1:-1]}" for each in cells
+        ]
+        lines.append(f"CELL_TYPES {total_cells}")
+        lines += [str(cell_type) for cell_type in types]
+        lines.append(f"CELL_DATA {total_cells}")
         if cell_data:
-            _write_scalar_block(file_open, "Label", label_data)
-            _write_scalar_block(file_open, "Mode", mode_data)
-            _write_scalar_block(file_open, "Rotation", rotation_data)
-            _write_scalar_block(file_open, "Size", size_data)
-        _write_scalar_block(file_open, "Average-Intensity", props)
+            lines += _scalar_lines("Label", label_data)
+            lines += _scalar_lines("Mode", mode_data)
+            lines += _scalar_lines("Rotation", rotation_data)
+            lines += _scalar_lines("Size", size_data)
+        lines += _scalar_lines("Average-Intensity", props)
 
-        file_open.close()
+        with open(filename, "w", encoding="utf-8") as file_open:
+            file_open.writelines(line + "\n" for line in lines)
 
     def adjust_mesh_for_FEM(self, force_triangulation=True):
         """

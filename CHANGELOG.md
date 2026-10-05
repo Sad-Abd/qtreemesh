@@ -47,6 +47,8 @@ All notable changes to this project will be documented in this file. The format 
   stack instead of recursion; `sectors()` now only creates the four child
   cells. Trees of any depth build without recursion limits, with identical
   results.
+- Performance: `vtk_export` assembles the file in memory and writes it in
+  one pass instead of one write call per line.
 - `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
   analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
   the condensed solutions of the six basic cell patterns, applies Dirichlet and
