@@ -157,3 +157,9 @@ def test_property_is_lazy_but_identical():
     assert leaf.property == np.mean(leaf.array)
     quad.property = 42.0
     assert quad.property == 42.0
+
+
+def test_property_descriptor_class_access():
+    from qtreemesh._qtreemesh import _LazyProperty
+
+    assert isinstance(QTree.property, _LazyProperty)

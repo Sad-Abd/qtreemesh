@@ -55,3 +55,14 @@ def test_mode_detection_covers_every_pattern():
         assert isinstance(result, list) and len(result) == 2
         assert result[0] in (1, 2, 3, 4, 5, 6)
         assert result[1] % 90 == 0
+
+
+@pytest.mark.parametrize(
+    "row, col",
+    [(26, 14), (14, 26), (14, 2)],
+)
+def test_unbalanced_guard_for_each_side(row, col):
+    image = np.zeros((32, 32), dtype=int)
+    image[row:row + 4, col:col + 4] = 5
+    with pytest.raises(ValueError, match="balanced"):
+        QTreeMesh.from_image(image, crit=1, balancing=False)
