@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-10-06
 ### Added
 - `QTreeMesh.from_image(image, crit, scale, max_size, balancing)`: builds the
   mesh from an image array in one step (padding, quadtree, elements).
@@ -15,17 +15,9 @@ All notable changes to this project will be documented in this file. The format 
   elements with proper VTK triangle/quadrilateral cell types, and
   `cell_data=True` writes per-cell `Label`, `Mode`, `Rotation` and `Size`
   arrays next to the averaged intensity.
-- `QTreeMesh.draw` is redrawn as a single polygon collection (one figure
-  artist instead of one per element), saves the figure before showing it,
-  accepts `show=False` and returns the figure; fill colors are clipped to a
-  valid grayscale range instead of failing on intensities above 255.
 - `label_mode` for `QTree` and `QTreeMesh.from_image`: mesh label maps by
   splitting every cell until it holds a single label, independent of the
   numeric distance between labels; every cell is then label-homogeneous.
-- Input validation: `image_preprocess` and `QTree` reject non-2D arrays;
-  `refactor_edge` reports a clear error when the quadtree is not balanced
-  for a 2:1 ratio (previously an `AttributeError`); node `depth` now keeps
-  its documented value on internal nodes after splitting.
 - `grad_crit` for `QTree` and `QTreeMesh.from_image`: cells also split when
   the maximum difference between adjacent pixels inside them exceeds this
   value, refining steep gradients independently of `crit`.
@@ -33,6 +25,18 @@ All notable changes to this project will be documented in this file. The format 
   nodes returned as linear constraints (multipoint-constraint alternative
   to triangulation); `QTreeElement` now carries `corner_numbers` and
   `hanging_nodes`.
+- `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
+  analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
+  the condensed solutions of the six basic cell patterns, applies Dirichlet and
+  traction boundary conditions, solves, and recovers boundary stresses and
+  interior fields. Requires `scipy`.
+- `scipy` added to the package dependencies.
+
+### Changed
+- `QTreeMesh.draw` is redrawn as a single polygon collection (one figure
+  artist instead of one per element), saves the figure before showing it,
+  accepts `show=False` and returns the figure; fill colors are clipped to a
+  valid grayscale range instead of failing on intensities above 255.
 - Performance: the split criterion is read from per-level blockwise max/min
   tables of the root array (built once, exact by construction) instead of
   scanning every cell array twice; the cell property (mean intensity) is
@@ -49,12 +53,12 @@ All notable changes to this project will be documented in this file. The format 
   results.
 - Performance: `vtk_export` assembles the file in memory and writes it in
   one pass instead of one write call per line.
-- `qtreemesh.sbfem` subpackage: linear static scaled boundary finite element
-  analysis of quadtree meshes. `SBFEMModel` assembles the sparse stiffness from
-  the condensed solutions of the six basic cell patterns, applies Dirichlet and
-  traction boundary conditions, solves, and recovers boundary stresses and
-  interior fields. Requires `scipy`.
-- `scipy` added to the package dependencies.
+
+### Fixed
+- Input validation: `image_preprocess` and `QTree` reject non-2D arrays;
+  `refactor_edge` reports a clear error when the quadtree is not balanced
+  for a 2:1 ratio (previously an `AttributeError`); node `depth` now keeps
+  its documented value on internal nodes after splitting.
 
 ## [0.2.0] - 2026-10-04
 ### Changed
